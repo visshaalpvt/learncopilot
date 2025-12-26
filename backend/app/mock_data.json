@@ -1,0 +1,246 @@
+{
+    "topics": {
+        "data_structures": {
+            "definition": "Data structures are specialized formats for organizing, processing, retrieving and storing data. They provide a way to manage large amounts of data efficiently for uses such as large databases and internet indexing services.",
+            "example": "Think of a library's catalog system. Just like books are organized by categories, authors, and ISBN numbers for quick retrieval, data structures organize information in computer memory. An array is like a numbered shelf where each book has a position (index), while a linked list is like a chain of books where each book points to the next one.",
+            "common_mistakes": [
+                "Confusing arrays with linked lists - arrays have fixed size and fast access, linked lists have dynamic size but slower access",
+                "Not considering time complexity when choosing a data structure",
+                "Forgetting to handle edge cases like empty structures or single elements",
+                "Mixing up stack (LIFO) and queue (FIFO) operations"
+            ],
+            "exam_answers": {
+                "2_mark": "Data structures are organized formats for storing and managing data efficiently in computer memory, enabling fast access and modification operations.",
+                "5_mark": "Data structures are fundamental components in computer science that organize data in specific formats to enable efficient access, modification, and storage. Common types include:\n1. Linear: Arrays, Linked Lists, Stacks, Queues\n2. Non-linear: Trees, Graphs, Hash Tables\nEach structure has specific operations (insert, delete, search) with different time complexities. The choice depends on the application requirements - arrays for fast random access, linked lists for frequent insertions/deletions, and trees for hierarchical data.",
+                "10_mark": "Data structures are systematic ways of organizing and storing data to enable efficient access and modification. They are crucial for algorithm design and optimization.\n\nTypes:\n1. Linear Structures:\n   - Arrays: Contiguous memory, O(1) access, fixed size\n   - Linked Lists: Dynamic size, O(n) access, O(1) insertion\n   - Stacks: LIFO, used in recursion, expression evaluation\n   - Queues: FIFO, used in scheduling, breadth-first search\n\n2. Non-Linear Structures:\n   - Trees: Hierarchical, BST for searching, AVL for balancing\n   - Graphs: Network representation, shortest path algorithms\n   - Hash Tables: O(1) average access, collision handling\n\nSelection Criteria:\n- Access pattern (random vs sequential)\n- Frequency of insertions/deletions\n- Memory constraints\n- Search requirements\n\nApplications: Database indexing, compiler design, operating systems, network routing.",
+                "interview_relevance": "Highly relevant - 90% of coding interviews test data structure knowledge. Focus on arrays, linked lists, trees, and hash tables. Practice implementing from scratch and analyzing time/space complexity."
+            }
+        },
+        "algorithms": {
+            "definition": "An algorithm is a step-by-step procedure or formula for solving a problem. It's a finite sequence of well-defined instructions that takes input, processes it through a series of computational steps, and produces output.",
+            "example": "Consider making tea: (1) Boil water, (2) Add tea leaves, (3) Add sugar, (4) Strain and pour. This is an algorithm! Similarly, a sorting algorithm might be: (1) Compare adjacent elements, (2) Swap if in wrong order, (3) Repeat until sorted. Just like following a recipe, computers follow algorithmic steps precisely.",
+            "common_mistakes": [
+                "Not considering edge cases (empty input, single element, duplicates)",
+                "Ignoring time and space complexity analysis",
+                "Choosing bubble sort when quick sort would be better",
+                "Not testing with different input sizes",
+                "Forgetting to initialize variables properly"
+            ],
+            "exam_answers": {
+                "2_mark": "An algorithm is a finite set of well-defined instructions to solve a specific problem or perform a computation, producing output from given input.",
+                "5_mark": "An algorithm is a step-by-step computational procedure that:\n1. Takes input data\n2. Processes it through defined steps\n3. Produces desired output\n4. Must be finite and unambiguous\n\nCharacteristics:\n- Finiteness: Must terminate\n- Definiteness: Each step clearly defined\n- Input: Zero or more inputs\n- Output: At least one output\n- Effectiveness: Steps must be basic enough to execute\n\nExamples: Searching (Linear, Binary), Sorting (Bubble, Quick, Merge), Graph traversal (BFS, DFS).",
+                "10_mark": "An algorithm is a precise step-by-step procedure for solving computational problems.\n\nCharacteristics:\n1. Input: Receives zero or more inputs\n2. Output: Produces at least one output\n3. Definiteness: Each instruction is clear and unambiguous\n4. Finiteness: Terminates after finite steps\n5. Effectiveness: Steps are basic and executable\n\nComplexity Analysis:\n- Time Complexity: How runtime grows with input size\n- Space Complexity: Memory requirements\n- Big-O notation: O(1), O(log n), O(n), O(n log n), O(n²)\n\nCommon Algorithms:\n1. Sorting: Bubble (O(n²)), Merge (O(n log n)), Quick (O(n log n) average)\n2. Searching: Linear (O(n)), Binary (O(log n))\n3. Graph: BFS, DFS, Dijkstra, Prim's, Kruskal's\n4. Dynamic Programming: Fibonacci, Knapsack, LCS\n\nDesign Techniques:\n- Divide and Conquer\n- Greedy Method\n- Dynamic Programming\n- Backtracking\n- Branch and Bound\n\nApplications: Database queries, route optimization, recommendation systems, compression, encryption.",
+                "interview_relevance": "Critical - 95% of technical interviews focus on algorithm problem-solving. Master sorting, searching, recursion, and dynamic programming. Practice on LeetCode/HackerRank."
+            }
+        },
+        "oops": {
+            "definition": "Object-Oriented Programming (OOP) is a programming paradigm based on the concept of 'objects', which contain data (attributes) and code (methods). It organizes software design around data and objects rather than functions and logic.",
+            "example": "Imagine a Car in real life - it has properties (color, model, speed) and behaviors (accelerate, brake, turn). In OOP:\nclass Car {\n  color = 'red';  // attribute\n  speed = 0;      // attribute\n  \n  accelerate() {  // method\n    this.speed += 10;\n  }\n}\nJust like real cars share common features, OOP allows creating multiple car objects from one blueprint (class).",
+            "common_mistakes": [
+                "Violating encapsulation by making everything public",
+                "Confusing inheritance with composition",
+                "Creating deep inheritance hierarchies instead of using interfaces",
+                "Not understanding the difference between abstract classes and interfaces",
+                "Overusing inheritance when composition would be better"
+            ],
+            "exam_answers": {
+                "2_mark": "OOP is a programming paradigm that organizes code into objects containing data (attributes) and methods (functions), promoting reusability and modularity through concepts like encapsulation, inheritance, and polymorphism.",
+                "5_mark": "Object-Oriented Programming (OOP) is a paradigm that structures programs around objects rather than functions.\n\nCore Principles:\n1. Encapsulation: Bundling data and methods, hiding internal details\n2. Abstraction: Showing only essential features\n3. Inheritance: Creating new classes from existing ones\n4. Polymorphism: Objects taking multiple forms\n\nBenefits:\n- Code reusability through inheritance\n- Modularity and maintainability\n- Data security through encapsulation\n- Flexibility through polymorphism\n\nExamples: Java, C++, Python, C#",
+                "10_mark": "Object-Oriented Programming (OOP) is a programming paradigm centered on objects that contain both data and behavior.\n\nCore Concepts:\n\n1. Class and Object:\n   - Class: Blueprint/template\n   - Object: Instance of a class\n   - Example: Car class → myCar, yourCar objects\n\n2. Encapsulation:\n   - Bundling data and methods together\n   - Access modifiers: private, public, protected\n   - Data hiding for security\n\n3. Inheritance:\n   - Acquiring properties from parent class\n   - Types: Single, Multiple, Multilevel, Hierarchical\n   - Promotes code reusability\n   - Example: Vehicle → Car, Bike\n\n4. Polymorphism:\n   - Method Overloading: Same name, different parameters\n   - Method Overriding: Redefining parent method\n   - Runtime and compile-time polymorphism\n\n5. Abstraction:\n   - Hiding implementation details\n   - Abstract classes and interfaces\n   - Focus on what, not how\n\nAdvantages:\n- Code reusability\n- Modularity and scalability\n- Easy maintenance and debugging\n- Data security\n- Real-world modeling\n\nDisadvantages:\n- Steeper learning curve\n- Larger program size\n- Slower execution\n\nApplications: Enterprise software, GUI applications, game development, simulation systems.",
+                "interview_relevance": "Very high - OOP principles are fundamental for most software roles. Be ready to explain the 4 pillars, design patterns (Singleton, Factory, Observer), and SOLID principles."
+            }
+        },
+        "dbms": {
+            "definition": "A Database Management System (DBMS) is software that handles the storage, retrieval, and updating of data in a database. It provides an interface between the database and users/applications, ensuring data integrity, security, and efficient access.",
+            "example": "Think of a DBMS like a librarian managing a library. The librarian (DBMS) knows where every book (data) is stored, can quickly find what you need (queries), prevents two people from editing the same book simultaneously (concurrency control), and ensures books aren't stolen (security). MySQL, PostgreSQL, and MongoDB are different types of 'librarians' for your data.",
+            "common_mistakes": [
+                "Not normalizing databases properly, causing redundancy",
+                "Ignoring indexing, leading to slow queries",
+                "Not using transactions for related operations",
+                "Storing passwords in plain text instead of hashing",
+                "Creating tables without primary keys"
+            ],
+            "exam_answers": {
+                "2_mark": "DBMS is software that manages databases by providing interfaces for data storage, retrieval, modification, and deletion while ensuring data integrity, security, and concurrent access control.",
+                "5_mark": "Database Management System (DBMS) is software for creating, managing, and manipulating databases.\n\nKey Functions:\n1. Data Definition: Create, modify, delete database structures\n2. Data Manipulation: Insert, update, delete, retrieve data\n3. Data Security: User authentication and authorization\n4. Data Integrity: Maintain accuracy and consistency\n5. Concurrency Control: Handle multiple simultaneous users\n\nTypes:\n- Relational (MySQL, PostgreSQL)\n- NoSQL (MongoDB, Cassandra)\n- Object-Oriented\n- Hierarchical\n\nAdvantages: Data independence, reduced redundancy, efficient access, backup/recovery, data sharing.",
+                "10_mark": "Database Management System (DBMS) is comprehensive software for database creation, maintenance, and usage.\n\nArchitecture:\n1. External Level: User views\n2. Conceptual Level: Logical structure\n3. Internal Level: Physical storage\n\nKey Components:\n- Query Processor: Interprets and executes queries\n- Storage Manager: Manages physical data storage\n- Transaction Manager: Ensures ACID properties\n- Buffer Manager: Optimizes memory usage\n\nDBMS Functions:\n1. Data Definition (DDL): CREATE, ALTER, DROP\n2. Data Manipulation (DML): SELECT, INSERT, UPDATE, DELETE\n3. Data Control (DCL): GRANT, REVOKE\n4. Transaction Control: COMMIT, ROLLBACK\n\nNormalization:\n- 1NF: Atomic values\n- 2NF: No partial dependencies\n- 3NF: No transitive dependencies\n- BCNF: Stricter 3NF\n\nACID Properties:\n- Atomicity: All or nothing\n- Consistency: Valid state always\n- Isolation: Concurrent transactions don't interfere\n- Durability: Committed data persists\n\nIndexing:\n- Primary Index: On primary key\n- Secondary Index: On non-key attributes\n- B-Tree, B+ Tree structures\n\nTypes:\n1. Relational: Tables with relationships\n2. NoSQL: Document, Key-Value, Column, Graph\n3. NewSQL: Distributed SQL\n\nAdvantages:\n- Data independence\n- Reduced redundancy\n- Data consistency\n- Multi-user access\n- Security and recovery\n\nApplications: Banking, Airlines, Universities, E-commerce, Healthcare.",
+                "interview_relevance": "Essential - Most applications use databases. Know SQL queries, normalization, indexing, transactions, and the difference between SQL and NoSQL. Practice query optimization."
+            }
+        },
+        "networking": {
+            "definition": "Computer networking is the practice of connecting computers and devices to share resources and information. It involves hardware (routers, switches, cables) and software (protocols, applications) working together to enable communication between devices.",
+            "example": "Your home WiFi is a network! Your phone, laptop, and smart TV all connect to a router, which connects to the internet. When you send a WhatsApp message, it travels through: Your phone → Router → ISP → Internet → WhatsApp servers → Recipient's ISP → Their router → Their phone. Each step follows networking protocols (rules) like TCP/IP.",
+            "common_mistakes": [
+                "Confusing IP address with MAC address",
+                "Not understanding the difference between TCP and UDP",
+                "Mixing up network layers and their functions",
+                "Forgetting about subnet masks in IP addressing",
+                "Not knowing the difference between switch and router"
+            ],
+            "exam_answers": {
+                "2_mark": "Computer networking is the interconnection of multiple computing devices to share resources and communicate, using hardware (routers, switches) and protocols (TCP/IP, HTTP) to transmit data.",
+                "5_mark": "Computer Networking is linking computers to share resources and exchange information.\n\nComponents:\n1. Hardware: Routers, Switches, Cables, NICs\n2. Software: Protocols, Operating Systems\n3. Transmission Media: Wired (Ethernet, Fiber), Wireless (WiFi, Bluetooth)\n\nNetwork Types:\n- LAN: Local Area Network (within building)\n- WAN: Wide Area Network (across cities/countries)\n- MAN: Metropolitan Area Network\n- PAN: Personal Area Network\n\nTopologies: Bus, Star, Ring, Mesh\n\nProtocols: TCP/IP, HTTP, FTP, SMTP\n\nBenefits: Resource sharing, communication, data backup, cost reduction.",
+                "10_mark": "Computer Networking connects devices for resource sharing and communication.\n\nOSI Model (7 Layers):\n1. Physical: Cables, signals, bits transmission\n2. Data Link: MAC addressing, error detection (Ethernet)\n3. Network: IP addressing, routing (IP, ICMP)\n4. Transport: End-to-end delivery (TCP, UDP)\n5. Session: Connection management\n6. Presentation: Data formatting, encryption\n7. Application: User interface (HTTP, FTP, SMTP)\n\nTCP/IP Model (4 Layers):\n1. Network Access: Physical + Data Link\n2. Internet: Routing and addressing (IP)\n3. Transport: TCP (reliable) vs UDP (fast)\n4. Application: End-user protocols\n\nIP Addressing:\n- IPv4: 32-bit (192.168.1.1)\n- IPv6: 128-bit (2001:0db8::1)\n- Classes: A, B, C, D, E\n- Subnetting: Dividing networks\n\nProtocols:\n- HTTP/HTTPS: Web browsing\n- FTP: File transfer\n- SMTP/POP3/IMAP: Email\n- DNS: Domain name resolution\n- DHCP: Automatic IP assignment\n\nNetwork Devices:\n1. Hub: Broadcasts to all (Layer 1)\n2. Switch: Intelligent forwarding (Layer 2)\n3. Router: Connects networks (Layer 3)\n4. Gateway: Protocol conversion\n5. Firewall: Security filtering\n\nTransmission Types:\n- Simplex: One-way\n- Half-Duplex: Two-way, not simultaneous\n- Full-Duplex: Two-way, simultaneous\n\nSecurity:\n- Encryption (SSL/TLS)\n- Firewalls\n- VPN\n- Authentication\n\nApplications: Internet, Video conferencing, Cloud computing, IoT, Remote work.",
+                "interview_relevance": "Important for backend/DevOps roles. Understand HTTP/HTTPS, REST APIs, websockets, TCP vs UDP, DNS, and basic network troubleshooting. Know how to use tools like ping, traceroute, curl."
+            }
+        }
+    },
+    "code_errors": {
+        "python": {
+            "syntax_error": {
+                "pattern": [
+                    "missing colon",
+                    "invalid syntax",
+                    "unexpected EOF",
+                    "invalid character"
+                ],
+                "explanation": "Syntax errors occur when Python can't understand your code structure. Common causes include missing colons after if/for/while/def statements, mismatched parentheses/brackets, or incorrect indentation.",
+                "hint": "Check for: missing colons at end of statements, unmatched brackets (), [], {}, proper indentation (4 spaces), and closing all quotes.",
+                "viva_questions": [
+                    "What is the difference between syntax error and runtime error?",
+                    "Why does Python use indentation instead of braces?",
+                    "How can you debug syntax errors efficiently?"
+                ]
+            },
+            "indentation_error": {
+                "pattern": [
+                    "indentation",
+                    "unexpected indent",
+                    "expected an indented block"
+                ],
+                "explanation": "Python uses indentation to define code blocks. IndentationError occurs when indentation is inconsistent (mixing tabs and spaces) or when expected indentation is missing (after if, for, while, def).",
+                "hint": "Use consistent 4-space indentation. Configure your editor to convert tabs to spaces. Check that all code blocks (if, for, while, functions, classes) have proper indentation.",
+                "viva_questions": [
+                    "Why is indentation important in Python?",
+                    "What's the difference between tabs and spaces?",
+                    "How many spaces should you use for indentation in Python?"
+                ]
+            },
+            "name_error": {
+                "pattern": [
+                    "name",
+                    "is not defined",
+                    "undefined variable"
+                ],
+                "explanation": "NameError occurs when you try to use a variable or function that hasn't been defined yet. This means you're referencing something Python doesn't know about. Common causes: typos in variable names, using a variable before assignment, or forgetting to import a module.",
+                "hint": "Check: 1) Variable is defined before use, 2) No typos in variable name (case-sensitive), 3) Required modules are imported, 4) Variable scope (local vs global).",
+                "viva_questions": [
+                    "What is variable scope in Python?",
+                    "What's the difference between local and global variables?",
+                    "How do you import functions from other modules?"
+                ]
+            },
+            "type_error": {
+                "pattern": [
+                    "unsupported operand type",
+                    "cannot concatenate",
+                    "object is not callable"
+                ],
+                "explanation": "TypeError occurs when you perform an operation on incompatible types. For example, adding a string to an integer ('hello' + 5), or calling a non-function as if it were a function.",
+                "hint": "Check data types before operations. Use type() to verify types. Convert types explicitly: str(), int(), float(). Remember: 'hello' + str(5) works, but 'hello' + 5 doesn't.",
+                "viva_questions": [
+                    "What are Python's basic data types?",
+                    "How do you convert between different data types?",
+                    "What is type casting and when should you use it?"
+                ]
+            },
+            "index_error": {
+                "pattern": [
+                    "list index out of range",
+                    "string index out of range"
+                ],
+                "explanation": "IndexError occurs when you try to access a list/string element at an index that doesn't exist. Remember: Python uses 0-based indexing, and the last index is len(list)-1.",
+                "hint": "Check: 1) List/string is not empty, 2) Index is within valid range [0, len-1], 3) Use len() to verify size before accessing, 4) Consider using try-except for dynamic indexes.",
+                "viva_questions": [
+                    "What is 0-based indexing?",
+                    "How do you access the last element of a list?",
+                    "What's the difference between positive and negative indexing?"
+                ]
+            },
+            "key_error": {
+                "pattern": [
+                    "KeyError",
+                    "key not found in dictionary"
+                ],
+                "explanation": "KeyError occurs when you try to access a dictionary key that doesn't exist. Unlike lists with numeric indices, dictionaries have arbitrary keys that must exist before access.",
+                "hint": "Use dict.get(key, default_value) instead of dict[key] for safe access. Or check if key exists first: if key in dict:. Or use try-except to handle missing keys.",
+                "viva_questions": [
+                    "What is a dictionary in Python?",
+                    "What's the difference between dict[key] and dict.get(key)?",
+                    "How do you check if a key exists in a dictionary?"
+                ]
+            },
+            "zero_division": {
+                "pattern": [
+                    "division by zero",
+                    "ZeroDivisionError"
+                ],
+                "explanation": "ZeroDivisionError occurs when you try to divide a number by zero, which is mathematically undefined. This is especially common with user input or calculations where the divisor could be zero.",
+                "hint": "Always check if divisor is zero before division. Use: if divisor != 0: result = num / divisor. For user input, validate before using in division.",
+                "viva_questions": [
+                    "Why can't you divide by zero mathematically?",
+                    "How do you handle exceptions in Python?",
+                    "What is a try-except block?"
+                ]
+            }
+        },
+        "c": {
+            "syntax_error": {
+                "pattern": [
+                    "expected ';'",
+                    "missing ')'",
+                    "expected '}'",
+                    "undeclared identifier"
+                ],
+                "explanation": "C is strict about syntax. Common issues: forgetting semicolons at end of statements, unmatched braces {}, missing parentheses (), or using variables without declaring them first.",
+                "hint": "Check: 1) Every statement ends with ;, 2) Every { has matching }, 3) Every ( has matching ), 4) Variables are declared before use with proper type (int, float, char).",
+                "viva_questions": [
+                    "What is the difference between declaration and definition?",
+                    "Why does C require explicit variable declaration?",
+                    "What are the basic data types in C?"
+                ]
+            },
+            "segmentation_fault": {
+                "pattern": [
+                    "segmentation fault",
+                    "core dumped",
+                    "access violation"
+                ],
+                "explanation": "Segmentation fault occurs when your program tries to access memory it doesn't own. Common causes: dereferencing NULL pointers, array out of bounds access, using freed memory, or stack overflow from infinite recursion.",
+                "hint": "Check: 1) Pointers are initialized before use, 2) Array indices are within bounds, 3) Don't use memory after free(), 4) Allocate enough memory with malloc(), 5) Check for NULL after malloc/calloc.",
+                "viva_questions": [
+                    "What is a pointer in C?",
+                    "What is the difference between stack and heap memory?",
+                    "How does malloc() work?"
+                ]
+            },
+            "undefined_reference": {
+                "pattern": [
+                    "undefined reference",
+                    "linker error",
+                    "cannot find symbol"
+                ],
+                "explanation": "This is a linker error, not a compiler error. It means you declared a function but didn't define (implement) it, or you forgot to include/compile the file containing the definition.",
+                "hint": "Check: 1) Function is defined somewhere, 2) All source files are included in compilation, 3) If using libraries, they're linked with -l flag, 4) Function name spelling matches exactly.",
+                "viva_questions": [
+                    "What is the difference between compilation and linking?",
+                    "What does the linker do?",
+                    "How do you compile multiple C files together?"
+                ]
+            },
+            "warning_unused": {
+                "pattern": [
+                    "unused variable",
+                    "variable set but not used"
+                ],
+                "explanation": "This warning indicates you declared a variable but never used it. While not an error, it suggests dead code that wastes memory and makes code harder to read.",
+                "hint": "Remove unused variables to clean up code. If the variable is needed for future use, add a comment explaining why it's currently unused.",
+                "viva_questions": [
+                    "Why should you pay attention to compiler warnings?",
+                    "What is code cleanliness?",
+                    "How do compiler warnings differ from errors?"
+                ]
+            }
+        }
+    }
+}
