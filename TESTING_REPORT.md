@@ -10,7 +10,7 @@
 ### Registration
 - ✅ User registration endpoint working
 - ✅ Password validation (72-char limit)
-- ✅ bcrypt version fixed (4.0.1)
+- ✅ Fixed bcrypt version fixed (3.2.2)
 - ✅ Auto-login after registration
 - ✅ Automatic redirect to Dashboard
 - ✅ JWT token generation and storage
@@ -192,7 +192,7 @@
 ## 🐛 Issues Fixed
 
 ### Authentication Issues
-- ✅ Fixed bcrypt 5.0.0 → 4.0.1 (72-byte error)
+- ✅ Fixed bcrypt version mismatch (pinned to 3.2.2)
 - ✅ Fixed CORS policy errors
 - ✅ Fixed blank pages after login
 - ✅ Fixed 500 Internal Server Error
@@ -213,7 +213,7 @@
    - Added `expose_headers=["*"]`
 
 2. **bcrypt Version** (`requirements.txt`)
-   - Downgraded from 5.0.0 to 4.0.1
+   - Downgraded to 3.2.2 for passlib compatibility
    - Fixed password hashing errors
 
 3. **Progress Endpoint** (`app/routers/progress.py`)
