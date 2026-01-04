@@ -1,0 +1,294 @@
+:root {
+    --eda-primary: #3b82f6;
+    /* Blue */
+    --eda-secondary: #8b5cf6;
+    /* Violet */
+    --eda-accent: #f43f5e;
+    /* Rose */
+    --eda-success: #10b981;
+    /* Emerald */
+    --eda-warning: #f59e0b;
+}
+
+.edu-agents-dashboard {
+    padding: 2rem;
+    min-height: 100vh;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+.agents-header {
+    margin-bottom: 2.5rem;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 1.5rem;
+}
+
+.agents-title {
+    font-size: 2rem;
+    font-weight: 700;
+    background: linear-gradient(135deg, var(--eda-primary), var(--eda-accent));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.agents-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(400px, 1fr));
+    gap: 1.5rem;
+}
+
+.edu-agent-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 1rem;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    position: relative;
+    display: flex;
+    flex-direction: column;
+}
+
+.edu-agent-card:hover {
+    transform: translateY(-4px);
+    box-shadow: 0 12px 24px -10px rgba(0, 0, 0, 0.3);
+    border-color: var(--eda-primary);
+}
+
+.agent-card-header {
+    padding: 1.25rem;
+    background: rgba(59, 130, 246, 0.05);
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.agent-identity {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+
+.agent-icon-box {
+    background: var(--bg-tertiary);
+    padding: 0.6rem;
+    border-radius: 8px;
+    color: var(--eda-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.status-badge {
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 0.25rem 0.75rem;
+    border-radius: 999px;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+}
+
+.status-badge::before {
+    content: '';
+    display: block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+}
+
+.status-active {
+    background: rgba(16, 185, 129, 0.1);
+    color: var(--eda-success);
+}
+
+.status-active::before {
+    background: var(--eda-success);
+    box-shadow: 0 0 8px var(--eda-success);
+}
+
+.status-alert {
+    background: rgba(244, 63, 94, 0.1);
+    color: var(--eda-accent);
+}
+
+.status-alert::before {
+    background: var(--eda-accent);
+    animation: pulse 1.5s infinite;
+}
+
+.status-learning {
+    background: rgba(139, 92, 246, 0.1);
+    color: var(--eda-secondary);
+}
+
+.status-learning::before {
+    background: var(--eda-secondary);
+}
+
+.status-idle {
+    background: var(--bg-tertiary);
+    color: var(--text-muted);
+}
+
+.status-idle::before {
+    background: var(--text-muted);
+}
+
+.agent-card-body {
+    padding: 1.25rem;
+    flex: 1;
+}
+
+.agent-description {
+    color: var(--text-secondary);
+    font-size: 0.9rem;
+    margin-bottom: 1.5rem;
+    line-height: 1.5;
+}
+
+.agent-metrics {
+    background: var(--bg-tertiary);
+    border-radius: 8px;
+    padding: 1rem;
+    margin-bottom: 1rem;
+}
+
+.metric-item {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+    font-size: 0.85rem;
+}
+
+.metric-item:last-child {
+    margin-bottom: 0;
+}
+
+.metric-key {
+    color: var(--text-secondary);
+}
+
+.metric-val {
+    font-weight: 600;
+    color: var(--text-primary);
+}
+
+.recent-actions {
+    font-size: 0.85rem;
+}
+
+.action-title {
+    color: var(--text-muted);
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    font-weight: 600;
+    margin-bottom: 0.5rem;
+}
+
+.action-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+}
+
+.action-item {
+    position: relative;
+    padding-left: 1rem;
+    margin-bottom: 0.4rem;
+    color: var(--text-primary);
+}
+
+.action-item::before {
+    content: '→';
+    position: absolute;
+    left: 0;
+    color: var(--eda-primary);
+}
+
+.agent-card-footer {
+    padding: 1rem;
+    border-top: 1px solid var(--border);
+    background: var(--bg-tertiary);
+}
+
+.simulate-btn {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--eda-primary);
+    background: rgba(59, 130, 246, 0.1);
+    color: var(--eda-primary);
+    border-radius: 6px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+}
+
+.simulate-btn:hover {
+    background: var(--eda-primary);
+    color: white;
+}
+
+@keyframes pulse {
+    0% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.5;
+    }
+
+    100% {
+        opacity: 1;
+    }
+}
+
+/* Toast Notification Styles for MVP "Full AI" feel */
+.ai-toast-container {
+    position: fixed;
+    bottom: 2rem;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+    z-index: 9999;
+    pointer-events: none;
+}
+
+.ai-toast {
+    background: rgba(15, 23, 42, 0.9);
+    backdrop-filter: blur(8px);
+    border: 1px solid var(--eda-primary);
+    padding: 1rem 1.5rem;
+    border-radius: 8px;
+    color: white;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3);
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    animation: slideUp 0.3s ease-out;
+    pointer-events: auto;
+}
+
+@keyframes slideUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}

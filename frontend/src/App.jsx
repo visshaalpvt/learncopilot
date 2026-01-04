@@ -15,6 +15,7 @@ import RevisionQueue from './pages/RevisionQueue';
 import Analytics from './pages/Analytics';
 import Progress from './pages/Progress';
 import Settings from './pages/Settings';
+import EduAgents from './pages/EduAgents';
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth();
@@ -57,6 +58,7 @@ function App() {
             <Route path="weakness" element={<WeaknessAnalysis />} />
             <Route path="revision-queue" element={<RevisionQueue />} />
             <Route path="analytics" element={<Analytics />} />
+            <Route path="edu-agents" element={<EduAgents />} />
             <Route path="progress" element={<Progress />} />
             <Route path="settings" element={<Settings />} />
           </Route>
