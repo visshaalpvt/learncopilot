@@ -68,30 +68,6 @@ const LandingPage = () => {
         }
     ];
 
-    const testimonials = [
-        {
-            name: "Priya Sharma",
-            role: "Computer Science Student",
-            avatar: "PS",
-            rating: 5,
-            text: "LearnCopilot transformed how I study. The AI agents are like having personal tutors available 24/7."
-        },
-        {
-            name: "Rahul Verma",
-            role: "Engineering Graduate",
-            avatar: "RV",
-            rating: 5,
-            text: "The exam preparation features helped me score in the top 5% of my class. Absolutely game-changing!"
-        },
-        {
-            name: "Dr. Anita Patel",
-            role: "University Professor",
-            avatar: "AP",
-            rating: 5,
-            text: "I recommend LearnCopilot to all my students. The analytics help me understand where they need support."
-        }
-    ];
-
     return (
         <div className="landing-page">
             {/* Navigation */}
@@ -104,7 +80,6 @@ const LandingPage = () => {
                     <div className="nav-links">
                         <a href="#features">Features</a>
                         <a href="#how-it-works">How It Works</a>
-                        <a href="#testimonials">Testimonials</a>
                     </div>
                     <div className="nav-actions">
                         <Link to="/login" className="btn-ghost">Sign In</Link>
@@ -148,22 +123,6 @@ const LandingPage = () => {
                                 See How It Works
                             </a>
                         </div>
-                        <div className="hero-stats">
-                            <div className="stat-item">
-                                <span className="stat-number">10K+</span>
-                                <span className="stat-label">Active Learners</span>
-                            </div>
-                            <div className="stat-divider"></div>
-                            <div className="stat-item">
-                                <span className="stat-number">50+</span>
-                                <span className="stat-label">Institutions</span>
-                            </div>
-                            <div className="stat-divider"></div>
-                            <div className="stat-item">
-                                <span className="stat-number">95%</span>
-                                <span className="stat-label">Success Rate</span>
-                            </div>
-                        </div>
                     </motion.div>
                     <motion.div
                         className="hero-visual"
@@ -200,27 +159,14 @@ const LandingPage = () => {
                             </div>
                             <div className="floating-card card-2">
                                 <span className="floating-icon">📈</span>
-                                <span>+23% Progress</span>
+                                <span>Track Progress</span>
                             </div>
                             <div className="floating-card card-3">
                                 <span className="floating-icon">⭐</span>
-                                <span>New Achievement!</span>
+                                <span>Earn Rewards</span>
                             </div>
                         </div>
                     </motion.div>
-                </div>
-            </section>
-
-            {/* Trust Section */}
-            <section className="trust-section">
-                <div className="trust-container">
-                    <p className="trust-label">Trusted by learners and institutions worldwide</p>
-                    <div className="trust-logos">
-                        <div className="trust-logo">🏛️ University Partners</div>
-                        <div className="trust-logo">🏢 EdTech Leaders</div>
-                        <div className="trust-logo">🌍 Global Reach</div>
-                        <div className="trust-logo">🏆 Award Winning</div>
-                    </div>
                 </div>
             </section>
 
@@ -298,51 +244,6 @@ const LandingPage = () => {
                 </div>
             </section>
 
-            {/* Testimonials Section */}
-            <section className="testimonials-section" id="testimonials">
-                <div className="section-container">
-                    <motion.div
-                        className="section-header"
-                        initial={{ opacity: 0, y: 30 }}
-                        whileInView={{ opacity: 1, y: 0 }}
-                        viewport={{ once: true }}
-                        transition={{ duration: 0.6 }}
-                    >
-                        <span className="section-badge">Testimonials</span>
-                        <h2 className="section-title">Loved by thousands of learners</h2>
-                        <p className="section-subtitle">
-                            See what our users have to say about their learning journey.
-                        </p>
-                    </motion.div>
-                    <div className="testimonials-grid">
-                        {testimonials.map((testimonial, index) => (
-                            <motion.div
-                                key={index}
-                                className="testimonial-card"
-                                initial={{ opacity: 0, y: 40 }}
-                                whileInView={{ opacity: 1, y: 0 }}
-                                viewport={{ once: true }}
-                                transition={{ duration: 0.5, delay: index * 0.15 }}
-                            >
-                                <div className="testimonial-rating">
-                                    {[...Array(testimonial.rating)].map((_, i) => (
-                                        <span key={i} className="star">⭐</span>
-                                    ))}
-                                </div>
-                                <p className="testimonial-text">"{testimonial.text}"</p>
-                                <div className="testimonial-author">
-                                    <div className="author-avatar">{testimonial.avatar}</div>
-                                    <div className="author-info">
-                                        <span className="author-name">{testimonial.name}</span>
-                                        <span className="author-role">{testimonial.role}</span>
-                                    </div>
-                                </div>
-                            </motion.div>
-                        ))}
-                    </div>
-                </div>
-            </section>
-
             {/* Final CTA Section */}
             <section className="cta-section">
                 <div className="cta-container">
@@ -355,7 +256,7 @@ const LandingPage = () => {
                     >
                         <h2 className="cta-title">Ready to transform your learning?</h2>
                         <p className="cta-subtitle">
-                            Join thousands of learners who are already achieving more with AI-powered study tools.
+                            Start your journey with AI-powered study tools today.
                         </p>
                         <Link to="/register" className="btn-primary btn-xl">
                             Start Learning Free Today
@@ -363,7 +264,7 @@ const LandingPage = () => {
                                 <path d="M5 12h14M12 5l7 7-7 7" />
                             </svg>
                         </Link>
-                        <p className="cta-note">No credit card required • Free forever for individuals</p>
+                        <p className="cta-note">No credit card required • Free to use</p>
                     </motion.div>
                 </div>
             </section>
@@ -378,7 +279,7 @@ const LandingPage = () => {
                                 <span className="logo-text">LearnCopilot</span>
                             </Link>
                             <p className="footer-tagline">
-                                AI-powered learning platform for the next generation of learners.
+                                AI-powered learning platform for students.
                             </p>
                         </div>
                         <div className="footer-links">
@@ -386,28 +287,16 @@ const LandingPage = () => {
                                 <h4>Product</h4>
                                 <a href="#features">Features</a>
                                 <a href="#how-it-works">How It Works</a>
-                                <a href="#testimonials">Testimonials</a>
                             </div>
                             <div className="footer-column">
-                                <h4>Company</h4>
-                                <a href="#">About Us</a>
-                                <a href="#">Careers</a>
-                                <a href="#">Contact</a>
-                            </div>
-                            <div className="footer-column">
-                                <h4>Legal</h4>
-                                <a href="#">Privacy Policy</a>
-                                <a href="#">Terms of Service</a>
+                                <h4>Get Started</h4>
+                                <Link to="/register">Sign Up</Link>
+                                <Link to="/login">Sign In</Link>
                             </div>
                         </div>
                     </div>
                     <div className="footer-bottom">
                         <p>© 2026 LearnCopilot. All rights reserved.</p>
-                        <div className="footer-social">
-                            <a href="#" aria-label="Twitter">𝕏</a>
-                            <a href="#" aria-label="LinkedIn">in</a>
-                            <a href="#" aria-label="GitHub">⚙</a>
-                        </div>
                     </div>
                 </div>
             </footer>
