@@ -872,6 +872,7 @@
     .hero-container {
         grid-template-columns: 1fr;
         text-align: center;
+        gap: 2rem;
     }
 
     .hero-content {
@@ -882,17 +883,12 @@
         justify-content: center;
     }
 
-    .hero-stats {
-        justify-content: center;
-    }
-
     .hero-visual {
-        margin-top: 3rem;
+        margin-top: 2rem;
     }
 
     .features-grid,
-    .steps-container,
-    .testimonials-grid {
+    .steps-container {
         grid-template-columns: repeat(2, 1fr);
     }
 
@@ -902,77 +898,252 @@
 }
 
 @media (max-width: 768px) {
+    .nav-container {
+        padding: 0.875rem 1rem;
+    }
+
+    .nav-logo {
+        font-size: 1.25rem;
+    }
+
+    .logo-icon {
+        font-size: 1.5rem;
+    }
+
+    .nav-actions .btn-ghost {
+        display: none;
+    }
+
+    .nav-actions .btn-primary {
+        padding: 0.625rem 1rem;
+        font-size: 0.875rem;
+    }
+
+    .hero-section {
+        padding: 5rem 1rem 3rem;
+        min-height: auto;
+    }
+
     .hero-title {
-        font-size: 2.75rem;
+        font-size: 2.25rem;
+        line-height: 1.15;
     }
 
-    .section-title {
-        font-size: 2rem;
+    .hero-subtitle {
+        font-size: 1rem;
+        margin-bottom: 1.5rem;
     }
 
-    .features-grid,
-    .steps-container,
-    .testimonials-grid {
-        grid-template-columns: 1fr;
-    }
-
-    .footer-main {
-        flex-direction: column;
-        gap: 3rem;
-    }
-
-    .footer-links {
-        flex-wrap: wrap;
-        gap: 2rem;
+    .hero-badge {
+        font-size: 0.75rem;
+        padding: 0.375rem 0.75rem;
+        margin-bottom: 1rem;
     }
 
     .hero-ctas {
         flex-direction: column;
-        align-items: center;
+        align-items: stretch;
+        gap: 0.75rem;
+        margin-bottom: 0;
     }
 
-    .hero-stats {
-        flex-direction: column;
-        gap: 1rem;
+    .hero-ctas .btn-primary,
+    .hero-ctas .btn-secondary {
+        width: 100%;
+        justify-content: center;
+        padding: 0.875rem 1.5rem;
     }
 
-    .stat-divider {
-        display: none;
+    .btn-lg {
+        padding: 0.875rem 1.5rem;
+        font-size: 1rem;
+    }
+
+    .btn-xl {
+        padding: 1rem 2rem;
+        font-size: 1rem;
+    }
+
+    .mockup-container {
+        max-width: 320px;
+        margin: 0 auto;
+    }
+
+    .mockup-content {
+        min-height: 200px;
+        padding: 1rem;
+    }
+
+    .mockup-sidebar {
+        width: 40px;
+    }
+
+    .sidebar-item {
+        height: 30px;
+    }
+
+    .mockup-card.large {
+        height: 80px;
+    }
+
+    .mockup-card.small {
+        height: 50px;
     }
 
     .floating-card {
         display: none;
     }
 
-    .cta-title {
-        font-size: 2rem;
-    }
-}
-
-@media (max-width: 480px) {
-    .nav-container {
-        padding: 1rem;
-    }
-
-    .hero-section {
-        padding: 6rem 1rem 3rem;
-    }
-
-    .hero-title {
-        font-size: 2.25rem;
-    }
-
-    .hero-subtitle {
-        font-size: 1.1rem;
-    }
-
     .section-container {
         padding: 0 1rem;
     }
 
-    .feature-card,
-    .step-card,
-    .testimonial-card {
+    .section-header {
+        margin-bottom: 2.5rem;
+    }
+
+    .section-badge {
+        font-size: 0.75rem;
+        padding: 0.25rem 0.75rem;
+    }
+
+    .section-title {
+        font-size: 1.75rem;
+        margin-bottom: 0.75rem;
+    }
+
+    .section-subtitle {
+        font-size: 1rem;
+    }
+
+    .features-section,
+    .how-it-works-section {
+        padding: 3rem 1rem;
+    }
+
+    .features-grid,
+    .steps-container {
+        grid-template-columns: 1fr;
+        gap: 1rem;
+    }
+
+    .feature-card {
         padding: 1.5rem;
+    }
+
+    .feature-icon {
+        font-size: 2rem;
+        margin-bottom: 1rem;
+    }
+
+    .feature-title {
+        font-size: 1.1rem;
+        margin-bottom: 0.5rem;
+    }
+
+    .feature-description {
+        font-size: 0.9rem;
+    }
+
+    .step-card {
+        padding: 1.5rem;
+    }
+
+    .step-number {
+        width: 50px;
+        height: 50px;
+        font-size: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .step-title {
+        font-size: 1.1rem;
+    }
+
+    .step-description {
+        font-size: 0.9rem;
+    }
+
+    .cta-section {
+        padding: 3rem 1rem;
+    }
+
+    .cta-title {
+        font-size: 1.75rem;
+    }
+
+    .cta-subtitle {
+        font-size: 1rem;
+        margin-bottom: 1.5rem;
+    }
+
+    .cta-note {
+        font-size: 0.8rem;
+    }
+
+    .landing-footer {
+        padding: 2.5rem 1rem 1.5rem;
+    }
+
+    .footer-main {
+        flex-direction: column;
+        gap: 2rem;
+        padding-bottom: 2rem;
+    }
+
+    .footer-brand {
+        text-align: center;
+    }
+
+    .footer-logo {
+        justify-content: center;
+    }
+
+    .footer-tagline {
+        max-width: 100%;
+        text-align: center;
+    }
+
+    .footer-links {
+        justify-content: center;
+        gap: 2rem;
+        text-align: center;
+    }
+
+    .footer-column h4 {
+        margin-bottom: 0.75rem;
+    }
+
+    .footer-column a {
+        margin-bottom: 0.5rem;
+    }
+
+    .footer-bottom {
+        flex-direction: column;
+        gap: 1rem;
+        text-align: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .hero-title {
+        font-size: 1.875rem;
+    }
+
+    .hero-subtitle {
+        font-size: 0.95rem;
+    }
+
+    .section-title {
+        font-size: 1.5rem;
+    }
+
+    .cta-title {
+        font-size: 1.5rem;
+    }
+
+    .footer-links {
+        flex-direction: column;
+        gap: 1.5rem;
     }
 }
