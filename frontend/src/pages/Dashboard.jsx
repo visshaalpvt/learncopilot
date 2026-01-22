@@ -216,7 +216,7 @@ function Dashboard() {
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                         className="btn btn-primary"
-                        onClick={() => navigate('/theory')}
+                        onClick={() => navigate('/app/theory')}
                     >
                         <BookOpen size={18} />
                         Theory Mode
@@ -225,7 +225,7 @@ function Dashboard() {
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}
                         className="btn btn-secondary"
-                        onClick={() => navigate('/practical')}
+                        onClick={() => navigate('/app/practical')}
                     >
                         <Code size={18} />
                         Practical Mode
@@ -290,7 +290,7 @@ function Dashboard() {
                             whileTap={{ scale: 0.95 }}
                             className="btn btn-primary btn-sm"
                             style={{ marginTop: '1rem' }}
-                            onClick={() => navigate('/syllabus')}
+                            onClick={() => navigate('/app/syllabus')}
                         >
                             Upload Syllabus
                         </motion.button>
