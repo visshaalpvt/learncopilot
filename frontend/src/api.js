@@ -22,10 +22,8 @@ api.interceptors.request.use((config) => {
 api.interceptors.response.use(
     (response) => response,
     (error) => {
-        if (error.response?.status === 401) {
-            localStorage.removeItem('token');
-            window.location.href = '/login';
-        }
+        // We handle 401s specifically in AuthContext to allow for Google User syncing
+        // If you want a global logout on 401, you should exclude the /auth/me or /auth/register endpoints
         return Promise.reject(error);
     }
 );

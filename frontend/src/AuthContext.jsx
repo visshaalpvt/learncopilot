@@ -39,12 +39,16 @@ export function AuthProvider({ children }) {
         try {
             const response = await api.get('/auth/me');
             setUser(response.data);
+            return response.data;
         } catch (error) {
             console.error('Error fetching user profile:', error);
             // Case where user is in Firebase but not in our DB (e.g. first time Google login)
             if (error.response?.status === 401 && auth.currentUser) {
-                await syncGoogleUser(auth.currentUser);
+                console.log("User not in DB, attempting to sync...");
+                const syncedUser = await syncGoogleUser(auth.currentUser);
+                return syncedUser;
             }
+            throw error;
         } finally {
             setLoading(false);
         }
@@ -53,15 +57,17 @@ export function AuthProvider({ children }) {
     const syncGoogleUser = async (firebaseUser) => {
         try {
             await api.post('/auth/register', {
-                username: firebaseUser.email.split('@')[0], // Default username
+                username: firebaseUser.email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '_'),
                 email: firebaseUser.email,
-                password: 'google-auth-no-password', // Placeholder
+                password: 'google-auth-no-password',
                 full_name: firebaseUser.displayName || firebaseUser.email.split('@')[0]
             });
             const response = await api.get('/auth/me');
             setUser(response.data);
+            return response.data;
         } catch (err) {
             console.error('Failed to sync Google user:', err);
+            throw err;
         }
     };
 
