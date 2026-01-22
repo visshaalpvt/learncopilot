@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 from typing import Optional
 import os
+import json
 from dotenv import load_dotenv
 import firebase_admin
 from firebase_admin import credentials, auth
@@ -10,9 +11,17 @@ load_dotenv()
 
 # Initialize Firebase Admin
 if not firebase_admin._apps:
-    cred_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "firebase-service-account.json")
-    cred = credentials.Certificate(cred_path)
+    # Try environment variable first (for Render deployment)
+    firebase_creds_json = os.getenv("FIREBASE_CREDENTIALS")
+    if firebase_creds_json:
+        cred_dict = json.loads(firebase_creds_json)
+        cred = credentials.Certificate(cred_dict)
+    else:
+        # Fall back to file (for local development)
+        cred_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "firebase-service-account.json")
+        cred = credentials.Certificate(cred_path)
     firebase_admin.initialize_app(cred)
+
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
