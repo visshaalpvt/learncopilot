@@ -37,17 +37,10 @@ function TheoryMode() {
                 topic_name: topic.name,
             });
             setTheoryContent(response.data);
-
-            // Get AI explanation with typing effect
-            await MockAI.explainTopic(topic.name, (text) => {
-                setAiExplanation(text);
-            });
+            setAiExplanation(response.data.ai_explanation || '');
         } catch (error) {
             console.error('Failed to fetch theory content:', error);
-            // Use mock AI as fallback
-            await MockAI.explainTopic(topic.name, (text) => {
-                setAiExplanation(text);
-            });
+            setAiExplanation('Sorry, I encountered an error while retrieving the grounded context. Please try again or check your knowledge base.');
         } finally {
             setLoading(false);
             setIsAiTyping(false);
@@ -158,21 +151,75 @@ function TheoryMode() {
                                 initial={{ opacity: 0, y: 10 }}
                                 animate={{ opacity: 1, y: 0 }}
                                 style={{
-                                    background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.1), rgba(139, 92, 246, 0.1))',
-                                    border: '1px solid rgba(99, 102, 241, 0.3)',
-                                    borderRadius: '0.75rem',
-                                    padding: '1rem',
+                                    background: 'linear-gradient(135deg, rgba(99, 102, 241, 0.05), rgba(139, 92, 246, 0.05))',
+                                    border: '1px solid var(--border)',
+                                    borderRadius: '12px',
+                                    padding: '1.25rem',
                                     marginBottom: '1.5rem',
+                                    position: 'relative',
+                                    overflow: 'hidden'
                                 }}
                             >
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                                    <Sparkles size={18} style={{ color: 'var(--primary)' }} />
-                                    <span style={{ fontWeight: '600', color: 'var(--primary)' }}>AI Explanation</span>
+                                <div style={{
+                                    position: 'absolute',
+                                    top: 0,
+                                    right: 0,
+                                    padding: '0.5rem 0.75rem',
+                                    background: 'var(--bg-tertiary)',
+                                    fontSize: '0.7rem',
+                                    fontWeight: '600',
+                                    color: 'var(--text-muted)',
+                                    borderBottomLeftRadius: '8px',
+                                    borderLeft: '1px solid var(--border)',
+                                    borderBottom: '1px solid var(--border)',
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '0.375rem'
+                                }}>
+                                    <CheckCircle size={12} color="#10B981" /> Grounded in Documents
+                                </div>
+
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '1rem' }}>
+                                    <div style={{
+                                        width: '32px',
+                                        height: '32px',
+                                        background: 'var(--primary)',
+                                        borderRadius: '8px',
+                                        display: 'flex',
+                                        alignItems: 'center',
+                                        justifyContent: 'center',
+                                        color: 'white'
+                                    }}>
+                                        <Sparkles size={16} />
+                                    </div>
+                                    <span style={{ fontWeight: '600', color: 'var(--text-primary)' }}>AI Tutor Insights</span>
                                     {isAiTyping && <Loader2 size={14} className="spin" style={{ color: 'var(--primary)' }} />}
                                 </div>
-                                <p style={{ lineHeight: '1.8', color: 'var(--text-secondary)', whiteSpace: 'pre-wrap' }}>
+                                <p style={{ lineHeight: '1.8', color: 'var(--text-secondary)', whiteSpace: 'pre-wrap', fontSize: '0.9375rem' }}>
                                     {aiExplanation}
                                 </p>
+
+                                {theoryContent?.citations && theoryContent.citations.length > 0 && (
+                                    <div style={{ marginTop: '1.25rem', paddingTop: '1rem', borderTop: '1px dashed var(--border)' }}>
+                                        <div style={{ fontSize: '0.75rem', fontWeight: '600', color: 'var(--text-muted)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                            <BookOpen size={12} /> SOURCES USED:
+                                        </div>
+                                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
+                                            {theoryContent.citations.slice(0, 3).map((cite, i) => (
+                                                <div key={i} style={{
+                                                    fontSize: '0.7rem',
+                                                    padding: '0.25rem 0.625rem',
+                                                    background: 'var(--bg-tertiary)',
+                                                    borderRadius: '4px',
+                                                    color: 'var(--text-secondary)',
+                                                    border: '1px solid var(--border)'
+                                                }}>
+                                                    {cite.filename} (p. {cite.page || '1'})
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                )}
                             </motion.div>
                         )}
 

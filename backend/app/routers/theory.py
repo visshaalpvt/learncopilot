@@ -7,11 +7,73 @@ from app.content_generator import content_generator
 router = APIRouter(prefix="/theory", tags=["Theory Mode"])
 
 @router.post("/get-content", response_model=TheoryResponse)
-def get_theory_topic(
+async def get_theory_topic(
     request: TopicRequest,
     current_user: User = Depends(get_current_user)
 ):
-    """Get theory content - dynamically generated"""
+    """Get theory content - document-grounded via RAG"""
+    from ..rag import rag_executor, query_router, query_rag, QueryIntent, QueryRoute, RoutingDecision
+    import json
+
+    # Create a specialized routing decision for theory
+    routing = RoutingDecision(
+        route=QueryRoute.RAG,
+        intent=QueryIntent.THEORY_EXPLANATION,
+        confidence=1.0,
+        reasoning="User requested theory mode content.",
+        suggested_filters={"topic": request.topic_name}
+    )
+
+    # Execute RAG
+    # We ask for a structured response to fit our schema
+    query = f"Provide a detailed academic explanation of {request.topic_name}. Include a core definition, a practical example, 3 common mistakes students make, and exam-style answers for 2 marks, 5 marks, and 10 marks. Also mention its interview relevance."
+    
+    rag_response = await rag_executor.execute(
+        query=query,
+        routing_decision=routing
+    )
+
+    # If RAG has context, we parse it into our structure
+    # If not, we fall back to content_generator or use the RAG answer as definition
+    if rag_response.citations:
+        # Use LLM to structure the RAG response into our JSON schema
+        from ..rag import llm_manager
+        struct_prompt = f"""
+        Structure the following academic content into a valid JSON object with these keys: 
+        "definition", "example", "common_mistakes" (list), and "exam_answers" (object with keys "2_mark", "5_mark", "10_mark", "interview_relevance").
+        
+        CONTENT:
+        {rag_response.answer}
+        
+        JSON:
+        """
+        struct_res = await llm_manager.generate(struct_prompt, temperature=0)
+        try:
+            # Simple cleaning for JSON
+            json_str = struct_res.content.strip()
+            if "```json" in json_str:
+                json_str = json_str.split("```json")[1].split("```")[0].strip()
+            elif "```" in json_str:
+                json_str = json_str.split("```")[1].split("```")[0].strip()
+            
+            structured_data = json.loads(json_str)
+            
+            return {
+                "topic_id": request.topic_id,
+                "topic_name": request.topic_name,
+                "definition": structured_data.get("definition", ""),
+                "example": structured_data.get("example", ""),
+                "common_mistakes": structured_data.get("common_mistakes", []),
+                "exam_answers": structured_data.get("exam_answers", {}),
+                "ai_explanation": rag_response.answer,
+                "citations": rag_response.citations,
+                "confidence": rag_response.confidence
+            }
+        except:
+            # Fallback if JSON parsing fails
+            pass
+
+    # Final Fallback to content_generator
     content = content_generator.generate_theory_content(
         request.topic_id, 
         request.topic_name

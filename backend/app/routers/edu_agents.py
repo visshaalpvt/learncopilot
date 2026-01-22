@@ -395,58 +395,37 @@ async def get_edu_agents_dashboard():
 @router.post("/sim-action/{agent_id}")
 async def trigger_agent_action(agent_id: str):
     """
-    Manually trigger an autonomous action from a specific agent.
-    
-    While agents operate autonomously in the background, this endpoint
-    allows users to manually trigger an action for demonstration purposes.
-    This is useful for:
-    - Testing agent functionality
-    - Demonstrating agentic behavior in presentations
-    - Forcing an immediate agent response
-    
-    Agentic Behavior Note:
-    In production, these actions happen automatically based on triggers,
-    not user commands. This endpoint simulates what would happen autonomously.
-    
-    Args:
-        agent_id (str): The ID of the agent to trigger. One of:
-                       - "adaptive_path"
-                       - "mentor" 
-                       - "peer_collab"
-                       - "engagement"
-                       - "accessibility"
-    
-    Returns:
-        dict: Action result containing:
-        - status: "success" or "error"
-        - agent: The agent ID that took the action
-        - action_taken: Description of the autonomous action performed
-        - timestamp: When the action was executed
-    
-    Raises:
-        HTTPException: If agent_id is not found
+    Manually trigger an autonomous action from a specific agent - using Real AI.
     """
-    # Mapping of agent IDs to their autonomous action descriptions
-    actions = {
-        "adaptive_path": "Learning path optimized based on latest quiz results.",
-        "mentor": "Check-in message sent to 5 students at risk of falling behind.",
-        "peer_collab": "Study groups reshuffled for optimal skill diversity.",
-        "engagement": "Instant feedback poll deployed to active session.",
-        "accessibility": "Content contrast automatically adjusted for 2 users."
+    from ..rag import llm_manager
+    
+    agent_prompts = {
+        "adaptive_path": "You are the Adaptive Learning Path Agent. Analyze a student's (mock) performance and suggest a specific learning path adjustment for a Computer Science subject. Be concise and proactive.",
+        "mentor": "You are the Autonomous Mentor Agent. Write a short, motivating check-in message for a student who hasn't logged in for 3 days. Mention a specific study strategy like the Pomodoro technique.",
+        "peer_collab": "You are the Peer Collaboration Facilitator. Announce the formation of a new study group for 'Data Structures'. Match 3 mock students with specific strengths.",
+        "engagement": "You are the Real-Time Engagement Monitor. You detected a drop in attention during a lecture on 'Algorithms'. Generate a short, interesting 'Quick Quiz' question to re-engage them.",
+        "accessibility": "You are the Inclusive Accessibility Agent. You detected a student might have dyslexia. Suggest 3 specific adjustments to the platform's UI or content delivery to help them."
     }
     
-    if agent_id not in actions:
+    if agent_id not in agent_prompts:
         raise HTTPException(
             status_code=404, 
-            detail=f"Agent '{agent_id}' not found. Valid agents: {list(actions.keys())}"
+            detail=f"Agent '{agent_id}' not found."
         )
+    
+    # Generate real AI response
+    response = await llm_manager.generate(
+        prompt=agent_prompts[agent_id],
+        system_prompt="You are an autonomous education AI agent part of the LearnCopilot platform. Your goal is to improve student success through proactive, intelligent interventions.",
+        temperature=0.7
+    )
     
     return {
         "status": "success", 
         "agent": agent_id, 
-        "action_taken": actions.get(agent_id, "Standard routine completed."),
+        "action_taken": response.content.strip(),
         "timestamp": datetime.now(),
-        "note": "This simulates an autonomous agent action for MVP demo purposes."
+        "is_ai_generated": True
     }
 
 

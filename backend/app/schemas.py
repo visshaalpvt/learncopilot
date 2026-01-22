@@ -52,6 +52,9 @@ class TheoryResponse(BaseModel):
     example: str
     common_mistakes: List[str]
     exam_answers: Dict[str, Any]
+    ai_explanation: Optional[str] = None
+    citations: Optional[List[Dict[str, Any]]] = []
+    confidence: Optional[float] = 1.0
 
 # Practical Schemas
 class CodeAnalysisRequest(BaseModel):
