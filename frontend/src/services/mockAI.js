@@ -200,8 +200,10 @@ export const MockAI = {
         if (existingAnalysis?.has_error) {
             aiInsight += `⚠️ I detected a potential issue. ${existingAnalysis.explanation || ''}\n\n`;
             aiInsight += `💡 **Suggestion:** ${existingAnalysis.suggested_fix || review.suggestions[0]}\n\n`;
+            aiInsight += `📘 **Lab Manual Reference:** See Section 4.2 "Common Pitfalls in ${lang.toUpperCase()}" for more details on this error type.\n\n`;
         } else {
             aiInsight += `✅ ${review.positive[Math.floor(Math.random() * review.positive.length)]}\n\n`;
+            aiInsight += `📘 **Lab Manual Reference:** Great job! For advanced optimization techniques, check Section 5.1 "Performance Tuning" in the lab manual.\n\n`;
         }
 
         aiInsight += `📝 **Remember:**\n• ${review.suggestions[Math.floor(Math.random() * review.suggestions.length)]}\n`;

@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom';
-import { Home, BookOpen, FileText, Code, GraduationCap, TrendingUp, Settings, AlertTriangle, RefreshCw, BarChart3, Clock, Zap, Bot } from 'lucide-react';
+import { Home, BookOpen, FileText, Code, GraduationCap, TrendingUp, Settings, AlertTriangle, RefreshCw, BarChart3, Clock, Zap, Bot, Database } from 'lucide-react';
 import AIChat from './AIChat';
 
 function Layout() {
@@ -14,6 +14,7 @@ function Layout() {
         { path: '/weakness', icon: AlertTriangle, label: 'Weakness Analysis' },
         { path: '/revision-queue', icon: RefreshCw, label: 'Revision Queue' },
         { path: '/edu-agents', icon: Bot, label: 'Pro AI Agents' },
+        { path: '/question-bank', icon: Database, label: 'Question Bank AI' },
         { path: '/analytics', icon: BarChart3, label: 'Analytics' },
         { path: '/progress', icon: TrendingUp, label: 'Progress' },
         { path: '/settings', icon: Settings, label: 'Settings' },

@@ -46,7 +46,7 @@ from app.database import engine, Base
 from app.routers import (
     auth, syllabus, theory, practical, progress,
     gamification, flashcards, pomodoro, notes,
-    study_plan, recommendations, edu_agents
+    study_plan, recommendations, edu_agents, question_bank
 )
 import os
 from dotenv import load_dotenv
@@ -136,6 +136,7 @@ app.include_router(notes.router)          # /notes - User notes management
 app.include_router(study_plan.router)     # /study-plan - Personalized study plans
 app.include_router(recommendations.router)# /recommendations - AI suggestions
 app.include_router(edu_agents.router)     # /edu-agents - 5 Autonomous AI Agents
+app.include_router(question_bank.router)  # /question-bank - Generator & Auditor
 
 # =============================================================================
 # ROOT ENDPOINTS

@@ -1,5 +1,15 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import {
+    signInWithEmailAndPassword,
+    createUserWithEmailAndPassword,
+    signOut,
+    onAuthStateChanged,
+    getIdToken,
+    GoogleAuthProvider,
+    signInWithPopup
+} from 'firebase/auth';
+import { auth } from './firebase';
 import api from './api';
 
 const AuthContext = createContext();
@@ -10,12 +20,19 @@ export function AuthProvider({ children }) {
     const navigate = useNavigate();
 
     useEffect(() => {
-        const token = localStorage.getItem('token');
-        if (token) {
-            fetchUser();
-        } else {
-            setLoading(false);
-        }
+        const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+            if (firebaseUser) {
+                const token = await getIdToken(firebaseUser);
+                localStorage.setItem('token', token);
+                await fetchUser();
+            } else {
+                localStorage.removeItem('token');
+                setUser(null);
+                setLoading(false);
+            }
+        });
+
+        return () => unsubscribe();
     }, []);
 
     const fetchUser = async () => {
@@ -23,33 +40,88 @@ export function AuthProvider({ children }) {
             const response = await api.get('/auth/me');
             setUser(response.data);
         } catch (error) {
-            localStorage.removeItem('token');
-            // Don't navigate here initially to avoid redirect loops on refresh
+            console.error('Error fetching user profile:', error);
+            // Case where user is in Firebase but not in our DB (e.g. first time Google login)
+            if (error.response?.status === 401 && auth.currentUser) {
+                await syncGoogleUser(auth.currentUser);
+            }
         } finally {
             setLoading(false);
         }
     };
 
-    const login = async (username, password) => {
-        const response = await api.post('/auth/login', { username, password });
-        localStorage.setItem('token', response.data.access_token);
+    const syncGoogleUser = async (firebaseUser) => {
+        try {
+            await api.post('/auth/register', {
+                username: firebaseUser.email.split('@')[0], // Default username
+                email: firebaseUser.email,
+                password: 'google-auth-no-password', // Placeholder
+                full_name: firebaseUser.displayName || firebaseUser.email.split('@')[0]
+            });
+            const response = await api.get('/auth/me');
+            setUser(response.data);
+        } catch (err) {
+            console.error('Failed to sync Google user:', err);
+        }
+    };
+
+    const login = async (email, password) => {
+        const userCredential = await signInWithEmailAndPassword(auth, email, password);
+        const token = await getIdToken(userCredential.user);
+        localStorage.setItem('token', token);
         await fetchUser();
-        return response.data;
+        return userCredential.user;
+    };
+
+    const loginWithGoogle = async () => {
+        try {
+            console.log("Starting Google login...");
+            const provider = new GoogleAuthProvider();
+            // Optional: force account selection
+            provider.setCustomParameters({ prompt: 'select_account' });
+
+            const userCredential = await signInWithPopup(auth, provider);
+            console.log("Google login successful, getting token...");
+
+            const token = await getIdToken(userCredential.user);
+            localStorage.setItem('token', token);
+
+            await fetchUser();
+            return userCredential.user;
+        } catch (error) {
+            console.error("Detailed Google Login Error:", error);
+            // Re-throw to be caught by the component
+            throw error;
+        }
     };
 
     const register = async (userData) => {
-        await api.post('/auth/register', userData);
-        return await login(userData.username, userData.password);
+        const { email, password, username, full_name } = userData;
+        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
+        const token = await getIdToken(userCredential.user);
+        localStorage.setItem('token', token);
+
+        // After Firebase registration, sync with our backend
+        await api.post('/auth/register', {
+            username,
+            email,
+            password, // Hashed on backend
+            full_name
+        });
+
+        await fetchUser();
+        return userCredential.user;
     };
 
-    const logout = () => {
+    const logout = async () => {
+        await signOut(auth);
         localStorage.removeItem('token');
         setUser(null);
         navigate('/login');
     };
 
     return (
-        <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+        <AuthContext.Provider value={{ user, loading, login, loginWithGoogle, register, logout }}>
             {children}
         </AuthContext.Provider>
     );

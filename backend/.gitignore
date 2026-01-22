@@ -8,3 +8,4 @@ venv/
 env/
 .vscode/
 .idea/
+firebase-service-account.json
