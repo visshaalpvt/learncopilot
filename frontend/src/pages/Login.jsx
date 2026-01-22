@@ -17,7 +17,7 @@ function Login() {
 
         try {
             await login(formData.email, formData.password);
-            navigate('/dashboard');
+            navigate('/app/dashboard');
         } catch (err) {
             console.error('Login error:', err);
             let errorMessage = 'Login failed. Please check your credentials.';
@@ -36,7 +36,7 @@ function Login() {
         setLoading(true);
         try {
             await loginWithGoogle();
-            navigate('/dashboard');
+            navigate('/app/dashboard');
         } catch (err) {
             console.error('Google login error:', err);
             setError(err.message || 'Google sign-in failed.');

@@ -4,20 +4,20 @@ import AIChat from './AIChat';
 
 function Layout() {
     const navItems = [
-        { path: '/dashboard', icon: Home, label: 'Dashboard' },
-        { path: '/syllabus', icon: FileText, label: 'Syllabus' },
-        { path: '/theory', icon: BookOpen, label: 'Theory Mode' },
-        { path: '/practical', icon: Code, label: 'Practical Mode' },
-        { path: '/exam-prep', icon: GraduationCap, label: 'Exam Prep' },
-        { path: '/tomorrow-exam', icon: Clock, label: 'Tomorrow Exam Mode' },
-        { path: '/adaptive-exam-ai', icon: Zap, label: 'Adaptive Exam AI' },
-        { path: '/weakness', icon: AlertTriangle, label: 'Weakness Analysis' },
-        { path: '/revision-queue', icon: RefreshCw, label: 'Revision Queue' },
-        { path: '/edu-agents', icon: Bot, label: 'Pro AI Agents' },
-        { path: '/question-bank', icon: Database, label: 'Question Bank AI' },
-        { path: '/analytics', icon: BarChart3, label: 'Analytics' },
-        { path: '/progress', icon: TrendingUp, label: 'Progress' },
-        { path: '/settings', icon: Settings, label: 'Settings' },
+        { path: '/app/dashboard', icon: Home, label: 'Dashboard' },
+        { path: '/app/syllabus', icon: FileText, label: 'Syllabus' },
+        { path: '/app/theory', icon: BookOpen, label: 'Theory Mode' },
+        { path: '/app/practical', icon: Code, label: 'Practical Mode' },
+        { path: '/app/exam-prep', icon: GraduationCap, label: 'Exam Prep' },
+        { path: '/app/tomorrow-exam', icon: Clock, label: 'Tomorrow Exam Mode' },
+        { path: '/app/adaptive-exam-ai', icon: Zap, label: 'Adaptive Exam AI' },
+        { path: '/app/weakness', icon: AlertTriangle, label: 'Weakness Analysis' },
+        { path: '/app/revision-queue', icon: RefreshCw, label: 'Revision Queue' },
+        { path: '/app/edu-agents', icon: Bot, label: 'Pro AI Agents' },
+        { path: '/app/question-bank', icon: Database, label: 'Question Bank AI' },
+        { path: '/app/analytics', icon: BarChart3, label: 'Analytics' },
+        { path: '/app/progress', icon: TrendingUp, label: 'Progress' },
+        { path: '/app/settings', icon: Settings, label: 'Settings' },
     ];
 
     return (

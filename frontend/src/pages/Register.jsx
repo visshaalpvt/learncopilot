@@ -22,7 +22,7 @@ function Register() {
 
         try {
             await register(formData);
-            navigate('/dashboard');
+            navigate('/app/dashboard');
         } catch (err) {
             console.error('Registration error:', err);
             const errorMessage = err.response?.data?.detail || err.message || 'Registration failed. Please try again.';
@@ -37,7 +37,7 @@ function Register() {
         setLoading(true);
         try {
             await loginWithGoogle();
-            navigate('/dashboard');
+            navigate('/app/dashboard');
         } catch (err) {
             console.error('Google login error:', err);
             setError(err.message || 'Google sign-in failed.');

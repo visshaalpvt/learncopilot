@@ -123,7 +123,7 @@ export function AuthProvider({ children }) {
         await signOut(auth);
         localStorage.removeItem('token');
         setUser(null);
-        navigate('/login');
+        navigate('/');
     };
 
     return (
