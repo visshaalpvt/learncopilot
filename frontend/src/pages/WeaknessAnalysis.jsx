@@ -52,18 +52,12 @@ function WeaknessAnalysis() {
         } catch (error) {
             console.error('Failed to fetch weakness data:', error);
             // Mock data as fallback
-            const mockWeak = [
-                { topic_name: 'Data Structures', severity: 'critical', reason: 'Marked as confusing', is_confused: true, is_completed: false, lab_attempts: 3 },
-                { topic_name: 'Algorithms', severity: 'high', reason: 'Multiple attempts (8)', is_confused: false, is_completed: false, lab_attempts: 8 },
-                { topic_name: 'Database Normalization', severity: 'high', reason: 'Marked as confusing', is_confused: true, is_completed: true, lab_attempts: 2 },
-                { topic_name: 'OOP Concepts', severity: 'medium', reason: 'Not completed yet', is_confused: false, is_completed: false, lab_attempts: 1 },
-            ];
-            setWeakAreas(mockWeak);
+            setWeakAreas([]);
             setAnalytics({
-                totalWeak: 4,
-                critical: 1,
-                high: 2,
-                medium: 1,
+                totalWeak: 0,
+                critical: 0,
+                high: 0,
+                medium: 0,
             });
         } finally {
             setLoading(false);

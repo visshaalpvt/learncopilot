@@ -167,7 +167,7 @@ async def generate_questions(request: QuestionRequest):
     1. Generator Agent creates questions from RAG context
     2. Auditor Agent critiques and reports
     """
-    from ..rag import rag_executor, llm_manager, QueryRoute, QueryIntent, RoutingDecision
+    from ..rag import rag_executor, llm_manager, QueryRoute, QueryIntent, RoutingDecision, vector_store
     import json
     
     # 1. ATTEMPT TO GET CONTEXT FROM RAG
@@ -229,13 +229,16 @@ async def generate_questions(request: QuestionRequest):
                 answer_key=q.get("answer_key", "Solution...")
             ))
     except:
-        # Fallback if LLM fails
-        topics = TOPICS_DB.get(request.course_name, TOPICS_DB["Data Structures"])
+        # Fallback if LLM fails - use topics from vector store
+        from ..rag import vector_store
+        v_topics = vector_store.get_topics(request.course_name)
+        topic_names = [t["name"] for t in v_topics] if v_topics else ["Unit 1", "Unit 2"]
+        
         for i in range(request.num_questions):
-            questions.append(generate_question(i+1, random.choice(topics), random.choice(list(BLOOM_VERBS.keys())), "CO1"))
+            topic = random.choice(topic_names) if topic_names else "General Concepts"
+            questions.append(generate_question(i+1, topic, random.choice(list(BLOOM_VERBS.keys())), "CO1"))
 
     # 3. AUDITOR AGENT ACTION
-    # We can use the LLM to audit too, but for speed we use the logic
     audit = audit_question_bank(questions)
     
     return {
@@ -247,4 +250,8 @@ async def generate_questions(request: QuestionRequest):
 
 @router.get("/get-courses")
 async def get_courses():
-    return {"courses": list(TOPICS_DB.keys())}
+    from ..rag import vector_store
+    subjects = vector_store.get_subjects()
+    # Filter out empty or None
+    subjects = [s for s in subjects if s]
+    return {"courses": subjects}

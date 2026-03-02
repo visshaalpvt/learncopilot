@@ -42,12 +42,7 @@ function RevisionQueue() {
         } catch (error) {
             console.error('Failed to fetch revision data:', error);
             // Mock data as fallback
-            setRevisionTopics([
-                { topic_name: 'Data Structures', daysSince: 15, priority: 'high', is_completed: true, needsRevision: true },
-                { topic_name: 'Algorithms', daysSince: 10, priority: 'medium', is_completed: true, needsRevision: true },
-                { topic_name: 'Database Systems', daysSince: 8, priority: 'medium', is_completed: false, needsRevision: true },
-                { topic_name: 'Networking', daysSince: 5, priority: 'low', is_completed: false, needsRevision: true },
-            ]);
+            setRevisionTopics([]);
         } finally {
             setLoading(false);
         }

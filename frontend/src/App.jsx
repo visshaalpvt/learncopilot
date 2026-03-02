@@ -18,6 +18,13 @@ import Progress from './pages/Progress';
 import Settings from './pages/Settings';
 import EduAgents from './pages/EduAgents';
 import QuestionBank from './pages/QuestionBank';
+import StudyRoadmap from './pages/StudyRoadmap';
+import OnboardingWizard from './pages/OnboardingWizard';
+import TeacherDashboard from './pages/TeacherDashboard';
+import ParentDashboard from './pages/ParentDashboard';
+import AdminDashboard from './pages/AdminDashboard';
+import CommunicationLab from './pages/CommunicationLab';
+import CareerDashboard from './pages/CareerDashboard';
 
 function PrivateRoute({ children }) {
   const { user, loading } = useAuth();
@@ -44,7 +51,15 @@ function PublicRoute({ children }) {
     );
   }
 
-  return user ? <Navigate to="/dashboard" /> : children;
+  return user ? <Navigate to="/app/dashboard" /> : children;
+}
+
+function OnboardingGuard({ children }) {
+  const { user } = useAuth();
+  if (user && user.role === 'student' && !user.onboarding_completed && !user.is_demo) {
+    return <Navigate to="/onboarding" />;
+  }
+  return children;
 }
 
 function App() {
@@ -56,6 +71,9 @@ function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<PublicRoute><Login /></PublicRoute>} />
           <Route path="/register" element={<PublicRoute><Register /></PublicRoute>} />
+
+          {/* Onboarding */}
+          <Route path="/onboarding" element={<PrivateRoute><OnboardingWizard /></PrivateRoute>} />
 
           {/* Protected Routes */}
           <Route
@@ -79,11 +97,19 @@ function App() {
             <Route path="analytics" element={<Analytics />} />
             <Route path="edu-agents" element={<EduAgents />} />
             <Route path="question-bank" element={<QuestionBank />} />
+            <Route path="study-roadmap" element={<StudyRoadmap />} />
             <Route path="progress" element={<Progress />} />
             <Route path="settings" element={<Settings />} />
+
+            {/* New Extended Routes */}
+            <Route path="communication-lab" element={<CommunicationLab />} />
+            <Route path="career" element={<CareerDashboard />} />
+            <Route path="teacher" element={<TeacherDashboard />} />
+            <Route path="parent" element={<ParentDashboard />} />
+            <Route path="admin" element={<AdminDashboard />} />
           </Route>
 
-          {/* Legacy routes redirect to new /app paths */}
+          {/* Legacy routes redirect */}
           <Route path="/dashboard" element={<Navigate to="/app/dashboard" />} />
           <Route path="/syllabus" element={<Navigate to="/app/syllabus" />} />
           <Route path="/theory" element={<Navigate to="/app/theory" />} />
@@ -105,4 +131,3 @@ function App() {
 }
 
 export default App;
-

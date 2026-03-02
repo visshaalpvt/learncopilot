@@ -1,23 +1,9 @@
-"""
-==============================================================================
-LEARNCOPILOT - AUTOMATED RAG SYSTEM
-Vector Store with Metadata-Driven Retrieval
-==============================================================================
-
-This module handles:
-- Embedding generation
-- Vector storage
-- Metadata-filtered retrieval
-- Subject-agnostic indexing
-
-Author: LearnCopilot Team
-==============================================================================
-"""
-
 import os
 import json
 import hashlib
-from typing import List, Dict, Optional, Tuple
+import time
+import re
+from typing import List, Dict, Optional, Tuple, Set
 from dataclasses import dataclass
 import numpy as np
 
@@ -32,273 +18,259 @@ class RetrievalResult:
     rank: int
 
 
-class SimpleEmbedding:
+class HybridEmbedder:
     """
-    Simple TF-IDF based embedding for demo/development.
-    In production, replace with sentence-transformers or OpenAI embeddings.
+    Enhanced Hybrid Embedder using TF-IDF and Keyword Frequency.
     """
     
-    def __init__(self, dimension: int = 384):
+    def __init__(self, dimension: int = 512):
         self.dimension = dimension
-        self.vocab = {}
-        self.idf = {}
+        self.vocab: Dict[str, int] = {}
+        self.idf: Dict[str, float] = {}
         self.is_fitted = False
     
-    def fit(self, documents: List[str]):
-        """Build vocabulary from documents."""
-        # Build vocabulary
+    def fit(self, chunks: List[DocumentChunk]):
+        """Fit on provided chunks."""
+        if not chunks: return
+        
+        texts = [c.content.lower() for c in chunks]
         word_doc_count = {}
-        for doc in documents:
-            words = set(doc.lower().split())
+        for text in texts:
+            words = set(re.findall(r'\w+', text))
             for word in words:
                 word_doc_count[word] = word_doc_count.get(word, 0) + 1
         
-        # Calculate IDF
-        num_docs = len(documents)
+        num_docs = len(texts)
         self.idf = {
-            word: np.log(num_docs / (count + 1))
+            word: np.log((num_docs + 1) / (count + 0.5))
             for word, count in word_doc_count.items()
         }
         
-        # Build vocab (top words by IDF)
-        sorted_words = sorted(self.idf.items(), key=lambda x: -x[1])
-        self.vocab = {word: idx for idx, (word, _) in enumerate(sorted_words[:self.dimension])}
+        # Select top features
+        sorted_vocab = sorted(self.idf.items(), key=lambda x: -x[1])
+        self.vocab = {word: idx for idx, (word, _) in enumerate(sorted_vocab[:self.dimension])}
         self.is_fitted = True
-    
+
     def embed(self, text: str) -> np.ndarray:
-        """Generate embedding for text."""
-        if not self.is_fitted:
-            # Simple fallback if not fitted
-            return self._hash_embed(text)
-        
+        """Generate high-quality vector."""
         vector = np.zeros(self.dimension)
-        words = text.lower().split()
-        word_count = {}
-        for word in words:
-            word_count[word] = word_count.get(word, 0) + 1
+        words = re.findall(r'\w+', text.lower())
+        if not words: return vector
         
-        for word, count in word_count.items():
+        counts = {}
+        for w in words: counts[w] = counts.get(w, 0) + 1
+        
+        for word, count in counts.items():
             if word in self.vocab:
                 idx = self.vocab[word]
                 tf = count / len(words)
-                idf = self.idf.get(word, 0)
-                vector[idx] = tf * idf
+                vector[idx] = tf * self.idf.get(word, 1.0)
         
-        # Normalize
+        # Unit normalization
         norm = np.linalg.norm(vector)
-        if norm > 0:
-            vector = vector / norm
-        
-        return vector
-    
-    def _hash_embed(self, text: str) -> np.ndarray:
-        """Fallback hash-based embedding."""
-        vector = np.zeros(self.dimension)
-        for i, word in enumerate(text.lower().split()):
-            h = int(hashlib.md5(word.encode()).hexdigest(), 16)
-            idx = h % self.dimension
-            vector[idx] += 1
-        
-        norm = np.linalg.norm(vector)
-        if norm > 0:
-            vector = vector / norm
+        if norm > 0: vector = vector / norm
         return vector
 
 
 class VectorStore:
     """
-    In-memory vector store with metadata filtering.
-    
-    Features:
-    - Automatic embedding generation
-    - Metadata-driven filtering
-    - Subject isolation
-    - Document type routing
+    Reliable Hybrid Vector Store with Persistence.
+    Uses BM25-inspired keyword matching combined with Vector Similarity.
     """
     
-    def __init__(self, embedding_dimension: int = 384):
-        self.dimension = embedding_dimension
-        self.embedder = SimpleEmbedding(dimension=embedding_dimension)
+    def __init__(self, storage_path: str = "vector_store.json"):
+        self.storage_path = storage_path
+        self.embedder = HybridEmbedder()
         
         # Storage
         self.chunks: Dict[str, DocumentChunk] = {}
         self.embeddings: Dict[str, np.ndarray] = {}
         
-        # Indexes for fast filtering
+        # Indexes
         self.by_subject: Dict[str, List[str]] = {}
-        self.by_doc_type: Dict[str, List[str]] = {}
-        self.by_topic: Dict[str, List[str]] = {}
         
         # Metrics
         self.total_retrievals = 0
-        self.avg_latency = 0
-    
+        
+        # Load from disk if exists
+        self.load()
+
     def add_chunks(self, chunks: List[DocumentChunk]):
-        """
-        Add document chunks to the vector store.
-        Automatically generates embeddings and indexes metadata.
-        """
-        # Fit embedder on new content if we have enough documents
-        if len(chunks) > 10:
-            texts = [c.content for c in chunks]
-            self.embedder.fit(texts)
+        """Add chunks and persist to disk."""
+        # Update embedder if needed
+        all_chunks = list(self.chunks.values()) + chunks
+        if len(all_chunks) > 5:
+            self.embedder.fit(all_chunks)
+            # Re-index existing if embedder changed significantly
+            for cid, chunk in self.chunks.items():
+                self.embeddings[cid] = self.embedder.embed(chunk.content)
         
         for chunk in chunks:
-            chunk_id = chunk.chunk_id
+            self.chunks[chunk.chunk_id] = chunk
+            self.embeddings[chunk.chunk_id] = self.embedder.embed(chunk.content)
             
-            # Store chunk
-            self.chunks[chunk_id] = chunk
-            
-            # Generate and store embedding
-            embedding = self.embedder.embed(chunk.content)
-            self.embeddings[chunk_id] = embedding
-            
-            # Update indexes
-            subject = chunk.subject.lower()
-            if subject not in self.by_subject:
-                self.by_subject[subject] = []
-            self.by_subject[subject].append(chunk_id)
-            
-            doc_type = chunk.doc_type.value if isinstance(chunk.doc_type, DocumentType) else chunk.doc_type
-            if doc_type not in self.by_doc_type:
-                self.by_doc_type[doc_type] = []
-            self.by_doc_type[doc_type].append(chunk_id)
-            
-            topic = chunk.topic.lower()
-            if topic not in self.by_topic:
-                self.by_topic[topic] = []
-            self.by_topic[topic].append(chunk_id)
-    
+            # Indexing (Title Case for readable display)
+            subj_display = chunk.subject.strip().title()
+            if subj_display not in self.by_subject: self.by_subject[subj_display] = []
+            if chunk.chunk_id not in self.by_subject[subj_display]:
+                self.by_subject[subj_display].append(chunk.chunk_id)
+        
+        self.save()
+
     def retrieve(
         self,
         query: str,
         top_k: int = 5,
         subject_filter: Optional[str] = None,
-        doc_type_filter: Optional[DocumentType] = None,
-        difficulty_filter: Optional[Difficulty] = None,
-        min_score: float = 0.0
+        min_score: float = 0.05
     ) -> List[RetrievalResult]:
-        """
-        Retrieve relevant chunks based on query with optional filters.
+        """Hybrid Retrieval: Vector Similarity + Keyword Match."""
+        self.total_retrievals += 1
+        query_vec = self.embedder.embed(query)
+        query_words = set(re.findall(r'\w+', query.lower()))
         
-        Args:
-            query: User query
-            top_k: Number of results to return
-            subject_filter: Filter by subject
-            doc_type_filter: Filter by document type
-            difficulty_filter: Filter by difficulty level
-            min_score: Minimum similarity score
+        # Filter candidates
+        candidates = list(self.chunks.keys())
+        if subject_filter:
+            candidates = self.by_subject.get(subject_filter.lower(), [])
             
-        Returns:
-            List of RetrievalResult sorted by relevance
-        """
-        import time
-        start_time = time.time()
-        
-        # Generate query embedding
-        query_embedding = self.embedder.embed(query)
-        
-        # Get candidate chunk IDs based on filters
-        candidates = self._get_filtered_candidates(
-            subject_filter, doc_type_filter, difficulty_filter
-        )
-        
-        # Calculate similarities
         results = []
-        for chunk_id in candidates:
-            if chunk_id not in self.embeddings:
-                continue
+        for cid in candidates:
+            # 1. Vector Score
+            vec_score = np.dot(query_vec, self.embeddings[cid])
             
-            chunk_embedding = self.embeddings[chunk_id]
-            score = self._cosine_similarity(query_embedding, chunk_embedding)
+            # 2. Keyword Boost
+            chunk_words = set(re.findall(r'\w+', self.chunks[cid].content.lower()))
+            common = query_words.intersection(chunk_words)
+            keyword_score = len(common) / max(1, len(query_words))
             
-            if score >= min_score:
-                results.append((chunk_id, score))
+            # Hybrid Score (Weighted)
+            final_score = (vec_score * 0.7) + (keyword_score * 0.3)
+            
+            if final_score >= min_score:
+                results.append((cid, final_score))
         
-        # Sort by score
         results.sort(key=lambda x: -x[1])
         
-        # Build result objects
-        retrieval_results = []
-        for rank, (chunk_id, score) in enumerate(results[:top_k], 1):
-            retrieval_results.append(RetrievalResult(
-                chunk=self.chunks[chunk_id],
-                score=float(score),
-                rank=rank
-            ))
-        
-        # Update metrics
-        latency = time.time() - start_time
-        self.total_retrievals += 1
-        self.avg_latency = (self.avg_latency * (self.total_retrievals - 1) + latency) / self.total_retrievals
-        
-        return retrieval_results
-    
-    def _get_filtered_candidates(
-        self,
-        subject_filter: Optional[str],
-        doc_type_filter: Optional[DocumentType],
-        difficulty_filter: Optional[Difficulty]
-    ) -> List[str]:
-        """Get chunk IDs matching all filters."""
-        # Start with all chunks
-        candidates = set(self.chunks.keys())
-        
-        # Apply subject filter
-        if subject_filter:
-            subject_key = subject_filter.lower()
-            subject_chunks = set(self.by_subject.get(subject_key, []))
-            candidates = candidates.intersection(subject_chunks)
-        
-        # Apply document type filter
-        if doc_type_filter:
-            doc_type_key = doc_type_filter.value if isinstance(doc_type_filter, DocumentType) else doc_type_filter
-            type_chunks = set(self.by_doc_type.get(doc_type_key, []))
-            candidates = candidates.intersection(type_chunks)
-        
-        # Apply difficulty filter
-        if difficulty_filter:
-            diff_chunks = set()
-            for chunk_id, chunk in self.chunks.items():
-                chunk_diff = chunk.difficulty.value if isinstance(chunk.difficulty, Difficulty) else chunk.difficulty
-                filter_diff = difficulty_filter.value if isinstance(difficulty_filter, Difficulty) else difficulty_filter
-                if chunk_diff == filter_diff:
-                    diff_chunks.add(chunk_id)
-            candidates = candidates.intersection(diff_chunks)
-        
-        return list(candidates)
-    
-    def _cosine_similarity(self, a: np.ndarray, b: np.ndarray) -> float:
-        """Calculate cosine similarity between two vectors."""
-        dot_product = np.dot(a, b)
-        norm_a = np.linalg.norm(a)
-        norm_b = np.linalg.norm(b)
-        
-        if norm_a == 0 or norm_b == 0:
-            return 0.0
-        
-        return dot_product / (norm_a * norm_b)
-    
+        return [
+            RetrievalResult(chunk=self.chunks[cid], score=float(s), rank=i+1)
+            for i, (cid, s) in enumerate(results[:top_k])
+        ]
+
+    def save(self):
+        """Persist to disk."""
+        try:
+            data = {
+                "chunks": {cid: c.to_dict() for cid, c in self.chunks.items()},
+                "vocab": self.embedder.vocab,
+                "idf": self.embedder.idf
+            }
+            with open(self.storage_path, "w") as f:
+                json.dump(data, f)
+        except Exception as e:
+            print(f"Save error: {e}")
+
+    def load(self):
+        """Load from disk."""
+        if not os.path.exists(self.storage_path): return
+        try:
+            with open(self.storage_path, "r") as f:
+                data = json.load(f)
+            
+            # Reconstruct chunks
+            for cid, cdict in data["chunks"].items():
+                # Correctly handle Enum types that were saved as strings
+                if "doc_type" in cdict and isinstance(cdict["doc_type"], str):
+                    try:
+                        cdict["doc_type"] = DocumentType(cdict["doc_type"])
+                    except ValueError:
+                        cdict["doc_type"] = DocumentType.UNKNOWN
+                
+                if "difficulty" in cdict and isinstance(cdict["difficulty"], str):
+                    try:
+                        cdict["difficulty"] = Difficulty(cdict["difficulty"])
+                    except ValueError:
+                        cdict["difficulty"] = Difficulty.INTERMEDIATE
+                        
+                self.chunks[cid] = DocumentChunk(**cdict)
+            
+            # Reconstruct embedder
+            self.embedder.vocab = data.get("vocab", {})
+            self.embedder.idf = data.get("idf", {})
+            self.embedder.is_fitted = True
+            
+            # Re-generate embeddings (don't store raw numpy in JSON)
+            for cid, chunk in self.chunks.items():
+                self.embeddings[cid] = self.embedder.embed(chunk.content)
+                # Legacy/Heal: If subject is empty, try to derive from filename
+                if not chunk.subject:
+                    name = os.path.basename(chunk.source_file or "").lower()
+                    if "data structure" in name:
+                        chunk.subject = "Data Structures"
+                    else:
+                        chunk.subject = "General"
+                
+                subj = chunk.subject.strip().title()
+                if subj not in self.by_subject: self.by_subject[subj] = []
+                self.by_subject[subj].append(cid)
+                
+        except Exception as e:
+            print(f"Load error: {e}")
+
     def get_stats(self) -> Dict:
-        """Get vector store statistics."""
+        doc_types = sorted(list(set(c.doc_type.value for c in self.chunks.values() if hasattr(c.doc_type, "value"))))
         return {
             "total_chunks": len(self.chunks),
             "total_subjects": len(self.by_subject),
-            "total_doc_types": len(self.by_doc_type),
-            "subjects": list(self.by_subject.keys()),
-            "doc_types": list(self.by_doc_type.keys()),
+            "subjects": sorted(list(self.by_subject.keys())),
             "total_retrievals": self.total_retrievals,
-            "avg_latency_ms": round(self.avg_latency * 1000, 2)
+            "doc_types": doc_types,
+            "total_doc_types": len(doc_types)
         }
-    
+
+    def get_subjects(self) -> List[str]:
+        """Returns the list of all indexed subjects."""
+        return sorted(list(self.by_subject.keys()))
+
+    def get_topics(self, subject: str) -> List[Dict[str, str]]:
+        """Extract unique topics from chunks of a specific subject."""
+        # Find the correct key (case-insensitive)
+        target_subject = subject.strip().title()
+        chunk_ids = self.by_subject.get(target_subject, [])
+        
+        # Fallback to search if direct match fails
+        if not chunk_ids:
+            for s in self.by_subject:
+                if s.lower() == subject.lower():
+                    chunk_ids = self.by_subject[s]
+                    break
+                    
+        unique_topics = set()
+        topics_list = []
+        
+        for cid in chunk_ids:
+            chunk = self.chunks.get(cid)
+            if chunk and chunk.topic and chunk.topic != "General Concept":
+                # Create a composite key to handle same topic in different sources if needed
+                # However, for the simple list we just include the source
+                if chunk.topic not in unique_topics:
+                    unique_topics.add(chunk.topic)
+                    topics_list.append({
+                        "id": f"topic_{len(topics_list)}",
+                        "name": chunk.topic,
+                        "source": chunk.source_file
+                    })
+        
+        return topics_list
+
     def clear(self):
-        """Clear all stored data."""
         self.chunks.clear()
         self.embeddings.clear()
         self.by_subject.clear()
-        self.by_doc_type.clear()
-        self.by_topic.clear()
+        if os.path.exists(self.storage_path):
+            os.remove(self.storage_path)
 
 
-# Singleton instance
+# Singleton
 vector_store = VectorStore()
+

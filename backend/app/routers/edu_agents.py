@@ -77,9 +77,10 @@ In production, these agents would use real ML models and databases.
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 from typing import List, Optional, Dict, Any
-import random
+from sqlalchemy.orm import Session
 from datetime import datetime, timedelta
 from app.dependencies import get_current_user
+from app.database import get_db
 from app.models import User
 
 
@@ -88,8 +89,7 @@ from app.models import User
 # =============================================================================
 router = APIRouter(
     prefix="/edu-agents",
-    tags=["Education Agents"],
-    dependencies=[Depends(get_current_user)]  # All endpoints require authentication
+    tags=["Education Agents"]
 )
 
 
@@ -134,137 +134,83 @@ class AgentStatus(BaseModel):
 # In production, these would be replaced with actual ML model predictions
 # and real database queries. For the MVP, we simulate realistic behavior.
 
-def generate_learning_path_metrics() -> Dict[str, Any]:
-    """
-    Generate metrics for the Adaptive Learning Path Agent.
-    
-    This agent continuously monitors student performance and dynamically
-    adjusts the learning path. Key agentic behaviors:
-    - Tracks mastery level across topics
-    - Determines optimal difficulty level
-    - Identifies next modules to study
-    - Triggers interventions when struggling detected
-    
-    Returns:
-        Dict containing:
-        - current_mastery: Overall mastery percentage
-        - adaptive_level: Current difficulty level (Fundamental/Intermediate/Advanced)
-        - next_modules: AI-recommended modules to study next
-        - intervention_needed: Boolean flag for proactive intervention
-    """
+def generate_learning_path_metrics(db, user_id) -> Dict[str, Any]:
+    """Real metrics from student progress data"""
+    from app.models import Progress
+    try:
+        topics = db.query(Progress).filter(Progress.user_id == user_id).all()
+        total = len(topics)
+        completed = sum(1 for t in topics if t.is_completed)
+        confused = sum(1 for t in topics if t.is_confused)
+        weak_topics = [t.topic_name for t in topics if t.is_confused][:3]
+        return {
+            "current_mastery": f"{round(completed / total * 100) if total else 0}%",
+            "topics_tracked": total,
+            "mastered_topics": completed,
+            "weak_topics": weak_topics if weak_topics else ["No data yet — upload syllabus to begin"],
+            "intervention_needed": confused > 2
+        }
+    except Exception:
+        return {"current_mastery": "0%", "topics_tracked": 0, "mastered_topics": 0, "weak_topics": ["Upload materials to begin"], "intervention_needed": False}
+
+
+def generate_mentor_metrics(db, user_id) -> Dict[str, Any]:
+    """Real metrics from notification and study data"""
+    from app.models import Notification
+    try:
+        unread = db.query(Notification).filter(Notification.user_id == user_id, Notification.is_read == False).count()
+        total_notifs = db.query(Notification).filter(Notification.user_id == user_id).count()
+        return {
+            "pending_checkins": unread,
+            "total_notifications": total_notifs,
+            "status": "Active" if total_notifs > 0 else "Awaiting first interaction",
+            "escalation_status": "Normal"
+        }
+    except Exception:
+        return {"pending_checkins": 0, "total_notifications": 0, "status": "Awaiting first interaction", "escalation_status": "Normal"}
+
+
+def generate_engagement_metrics(db, user_id) -> Dict[str, Any]:
+    """Real metrics from quiz and session data"""
+    from app.models import QuizAttempt
+    try:
+        attempts = db.query(QuizAttempt).filter(QuizAttempt.user_id == user_id).all()
+        total_quizzes = len(attempts)
+        correct = sum(1 for a in attempts if a.is_correct)
+        avg_score = round(correct / total_quizzes * 100, 1) if total_quizzes else 0
+        return {
+            "quizzes_taken": total_quizzes,
+            "avg_quiz_score": f"{avg_score}%",
+            "engagement_level": "High" if total_quizzes > 10 else "Medium" if total_quizzes > 3 else "Getting started",
+            "alert_level": "Normal"
+        }
+    except Exception:
+        return {"quizzes_taken": 0, "avg_quiz_score": "0%", "engagement_level": "Getting started", "alert_level": "Normal"}
+
+
+def generate_comm_metrics(db, user_id) -> Dict[str, Any]:
+    """Real metrics from communication sessions"""
+    from app.models import CommunicationSession
+    try:
+        sessions = db.query(CommunicationSession).filter(CommunicationSession.user_id == user_id).all()
+        total = len(sessions)
+        avg_score = round(sum(s.overall_score or 0 for s in sessions) / total, 1) if total else 0
+        return {
+            "sessions_completed": total,
+            "avg_confidence_score": f"{avg_score}%",
+            "practice_minutes": sum(s.duration_seconds or 0 for s in sessions) // 60,
+            "types_practiced": list(set(s.session_type for s in sessions)) if sessions else []
+        }
+    except Exception:
+        return {"sessions_completed": 0, "avg_confidence_score": "0%", "practice_minutes": 0, "types_practiced": []}
+
+
+def generate_accessibility_metrics(db, user_id) -> Dict[str, Any]:
+    """Accessibility agent status"""
     return {
-        "current_mastery": f"{random.randint(65, 95)}%",
-        "adaptive_level": random.choice(["Fundamental", "Intermediate", "Advanced"]),
-        "next_modules": random.choice([
-            ["Python Basics", "Loops", "Functions"], 
-            ["Data Structures", "Trees", "Graphs"],
-            ["React Hooks", "State Management", "Context API"]
-        ]),
-        "intervention_needed": random.choice([True, False])
-    }
-
-
-def generate_mentor_metrics() -> Dict[str, Any]:
-    """
-    Generate metrics for the Autonomous Mentor Agent.
-    
-    This agent acts as a virtual tutor that proactively:
-    - Checks in with students periodically
-    - Monitors emotional state and motivation
-    - Sends intelligent reminders about deadlines
-    - Escalates to human instructors when needed
-    
-    Returns:
-        Dict containing:
-        - pending_checkins: Number of scheduled check-ins pending
-        - student_mood: Detected emotional/motivation state
-        - last_reminder: Most recent reminder sent
-        - escalation_status: Whether human intervention is needed
-    """
-    return {
-        "pending_checkins": random.randint(0, 3),
-        "student_mood": random.choice(["Motivated", "Struggling", "Neutral", "High Energy"]),
-        "last_reminder": "Assignment 3 due in 2 days",
-        "escalation_status": "Normal"
-    }
-
-
-def generate_peer_collab_metrics() -> Dict[str, Any]:
-    """
-    Generate metrics for the Peer Collaboration Facilitator Agent.
-    
-    This agent autonomously manages study groups by:
-    - Matching students based on complementary skills
-    - Forming optimal study groups dynamically
-    - Scheduling collaborative sessions
-    - Nudging inactive groups to stay engaged
-    
-    Returns:
-        Dict containing:
-        - active_groups: Current number of active study groups
-        - pending_matches: Students waiting to be matched
-        - engagement_score: Group participation metric
-        - next_session: Next scheduled collaboration session
-    """
-    return {
-        "active_groups": random.randint(3, 8),
-        "pending_matches": random.randint(1, 10),
-        "engagement_score": f"{random.randint(70, 98)}/100",
-        "next_session": "Today, 4:00 PM"
-    }
-
-
-def generate_engagement_metrics() -> Dict[str, Any]:
-    """
-    Generate metrics for the Real-Time Engagement Monitor Agent.
-    
-    This agent continuously monitors student attention and takes
-    autonomous actions to re-engage students:
-    - Tracks attention index in real-time
-    - Detects disengaged students immediately
-    - Triggers interactive polls/quizzes automatically
-    - Alerts instructors when attention drops critically
-    
-    Returns:
-        Dict containing:
-        - class_attention_index: Overall class attention percentage
-        - disengaged_students: Count of students showing low engagement
-        - active_polls: Currently running interactive polls
-        - alert_level: "High" when attention < 60%, else "Normal"
-    """
-    attention = random.randint(40, 100)
-    return {
-        "class_attention_index": f"{attention}%",
-        "disengaged_students": random.randint(0, 5),
-        "active_polls": random.randint(0, 1),
-        "alert_level": "High" if attention < 60 else "Normal"
-    }
-
-
-def generate_accessibility_metrics() -> Dict[str, Any]:
-    """
-    Generate metrics for the Inclusive Accessibility Agent.
-    
-    This agent ensures inclusive learning by autonomously:
-    - Detecting learning difficulties (dyslexia, color blindness, etc.)
-    - Adjusting content presentation in real-time
-    - Enabling assistive features automatically
-    - Generating alternative content formats (audio, simplified text)
-    
-    Returns:
-        Dict containing:
-        - active_adjustments: Currently active accessibility features
-        - detected_needs: Learning difficulties auto-detected
-        - content_processed: Amount of content made accessible
-    """
-    return {
-        "active_adjustments": ["High Contrast", "Text-to-Speech"][0:random.randint(0, 2)],
-        "detected_needs": random.choice([
-            "None", 
-            "Dyslexia Pattern Detected", 
-            "Color Blindness Support"
-        ]),
-        "content_processed": f"{random.randint(100, 500)} pages"
+        "active_adjustments": [],
+        "detected_needs": "None — monitoring",
+        "status": "Monitoring"
     }
 
 
@@ -273,118 +219,79 @@ def generate_accessibility_metrics() -> Dict[str, Any]:
 # =============================================================================
 
 @router.get("/dashboard", response_model=List[AgentStatus])
-async def get_edu_agents_dashboard():
-    """
-    Get the real-time dashboard status of all 5 autonomous education agents.
+async def get_edu_agents_dashboard(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """Get real-time dashboard status of all 5 autonomous agents with real data."""
+    from sqlalchemy.orm import Session as S
     
-    This endpoint demonstrates the AGENTIC nature of our AI system by showing:
-    1. Each agent's current operational status
-    2. Real-time metrics reflecting autonomous monitoring
-    3. Recent autonomous actions taken by each agent
+    from app.models import Progress, QuizAttempt, Notification, CommunicationSession
     
-    The agents continuously operate in the background, monitoring student
-    behavior and taking proactive actions without waiting for commands.
+    # Generate dynamic recent actions
+    # 1. Adaptive Path actions
+    recent_progress = db.query(Progress).filter(Progress.user_id == current_user.id).order_by(Progress.last_activity.desc()).limit(2).all()
+    ap_actions = [f"Analyzed progress for {p.topic_name}" for p in recent_progress] or ["Monitoring learning trajectory"]
     
-    Agentic AI Behaviors Demonstrated:
-    - Proactive monitoring and intervention
-    - Autonomous decision making
-    - Real-time adaptation to student needs
-    - Multi-agent coordination
+    # 2. Mentor actions
+    recent_notifs = db.query(Notification).filter(Notification.user_id == current_user.id).order_by(Notification.created_at.desc()).limit(2).all()
+    mentor_actions = [f"Sent: {n.title}" for n in recent_notifs] or ["Ready to provide study guidance"]
     
-    Returns:
-        List[AgentStatus]: Status information for all 5 agents including:
-        - Adaptive Learning Path Agent
-        - Autonomous Mentor Agent  
-        - Peer Collaboration Facilitator
-        - Real-Time Engagement Monitor
-        - Inclusive Accessibility Agent
-    """
-    # Simulate real-time fluctuating data as agents continuously process
+    # 3. Peer Collab / Comm actions
+    recent_comm = db.query(CommunicationSession).filter(CommunicationSession.user_id == current_user.id).order_by(CommunicationSession.created_at.desc()).limit(2).all()
+    comm_actions = [f"Graded {s.session_type} session" for s in recent_comm] or ["Tracking communication lab metrics"]
     
+    # 4. Engagement actions
+    recent_quizzes = db.query(QuizAttempt).filter(QuizAttempt.user_id == current_user.id).order_by(QuizAttempt.created_at.desc()).limit(2).all()
+    eng_actions = [f"Evaluated performance on {q.topic_name}" for q in recent_quizzes] or ["Detecting mastery patterns"]
+
     agents = [
-        # =====================================================================
-        # AGENT 1: Adaptive Learning Path Agent
-        # =====================================================================
-        # AGENTIC BEHAVIOR: Continuously monitors performance metrics and
-        # autonomously adjusts the learning path difficulty and content
         {
             "id": "adaptive_path",
             "name": "Adaptive Learning Path Agent",
             "status": "active",
             "last_active": datetime.now(),
-            "description": "Continuously monitors performance to dynamically adjust learning paths and difficulty.",
-            "metrics": generate_learning_path_metrics(),
-            "recent_actions": [
-                "Adjusted difficulty to 'Advanced' for Module 4",
-                "Scheduled proactive intervention for Topic: Recursion"
-            ]
+            "description": "Monitors your performance and adjusts learning difficulty in real-time.",
+            "metrics": generate_learning_path_metrics(db, current_user.id),
+            "recent_actions": ap_actions
         },
-        # =====================================================================
-        # AGENT 2: Autonomous Mentor Agent
-        # =====================================================================
-        # AGENTIC BEHAVIOR: Proactively reaches out to students, doesn't wait
-        # for them to ask for help. Sends reminders and suggests strategies.
         {
             "id": "mentor",
             "name": "Autonomous Mentor Agent",
-            "status": "active" if random.random() > 0.3 else "idle",
-            "last_active": datetime.now() - timedelta(minutes=random.randint(1, 60)),
-            "description": "Virtual mentor that checks in, suggests strategies, and sends intelligent reminders.",
-            "metrics": generate_mentor_metrics(),
-            "recent_actions": [
-                "Sent reminder: 'Don't forget the practical exam tomorrow!'",
-                "Suggested 'Pomodoro Technique' for improved focus"
-            ]
+            "status": "active",
+            "last_active": datetime.now(),
+            "description": "Your AI mentor that sends reminders and suggests study strategies.",
+            "metrics": generate_mentor_metrics(db, current_user.id),
+            "recent_actions": mentor_actions
         },
-        # =====================================================================
-        # AGENT 3: Peer Collaboration Facilitator
-        # =====================================================================
-        # AGENTIC BEHAVIOR: Autonomously forms study groups based on skill
-        # matching algorithms. Nudges groups to stay active.
         {
             "id": "peer_collab",
-            "name": "Peer Collaboration Facilitator",
-            "status": "learning",
-            "last_active": datetime.now() - timedelta(minutes=15),
-            "description": "Matches students for study groups and coordinates meetings based on skills.",
-            "metrics": generate_peer_collab_metrics(),
-            "recent_actions": [
-                "Formed 3 new study groups for 'Database Design'",
-                "Nudged Group Alpha to schedule their weekly sync"
-            ]
+            "name": "Communication & Practice Agent",
+            "status": "active",
+            "last_active": datetime.now(),
+            "description": "Tracks your communication practice sessions and confidence growth.",
+            "metrics": generate_comm_metrics(db, current_user.id),
+            "recent_actions": comm_actions
         },
-        # =====================================================================
-        # AGENT 4: Real-Time Engagement Monitor
-        # =====================================================================
-        # AGENTIC BEHAVIOR: Continuously monitors attention levels and
-        # automatically triggers re-engagement activities when needed.
         {
             "id": "engagement",
-            "name": "Real-Time Engagement Monitor",
-            "status": "alert" if random.random() > 0.8 else "active",
+            "name": "Quiz & Engagement Monitor",
+            "status": "active",
             "last_active": datetime.now(),
-            "description": "Tracks attention and triggers instant feedback polls to re-engage students.",
-            "metrics": generate_engagement_metrics(),
-            "recent_actions": [
-                "Detected low attention in execution session",
-                "Triggered 'Quick Quiz' to boost engagement"
-            ]
+            "description": "Monitors your quiz performance and triggers adaptive review sessions.",
+            "metrics": generate_engagement_metrics(db, current_user.id),
+            "recent_actions": eng_actions
         },
-        # =====================================================================
-        # AGENT 5: Inclusive Accessibility Agent
-        # =====================================================================
-        # AGENTIC BEHAVIOR: Auto-detects learning difficulties without user
-        # input and automatically adjusts content presentation.
         {
             "id": "accessibility",
             "name": "Inclusive Accessibility Agent",
             "status": "active",
             "last_active": datetime.now(),
-            "description": "Auto-detects learning difficulties and adjusts content presentation dynamically.",
-            "metrics": generate_accessibility_metrics(),
+            "description": "Ensures content is accessible and adapts presentation to your needs.",
+            "metrics": generate_accessibility_metrics(db, current_user.id),
             "recent_actions": [
-                "Activated 'Dyslexia Friendly Font' for Student #1042",
-                "Generated audio summaries for text-heavy modules"
+                "Monitoring content accessibility",
+                "Ready to adapt presentation style"
             ]
         }
     ]
@@ -454,8 +361,7 @@ async def get_orchestration_status():
     """
     return {
         "total_agents": 5,
-        "active_agents": random.randint(3, 5),
-        "total_actions_today": random.randint(50, 200),
+        "active_agents": 5,
         "coordination_mode": "Collaborative",
         "system_health": "Optimal",
         "next_scheduled_action": {

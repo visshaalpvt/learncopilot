@@ -21,7 +21,10 @@ import httpx
 from typing import List, Dict, Optional, Any
 from dataclasses import dataclass
 from enum import Enum
-import asyncio
+from dotenv import load_dotenv
+
+# Load environment variables early for provider initialization
+load_dotenv()
 
 
 class LLMProvider(Enum):

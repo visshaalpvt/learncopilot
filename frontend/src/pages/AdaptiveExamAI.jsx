@@ -14,9 +14,11 @@ function AdaptiveExamAI() {
     const [confidenceLevel, setConfidenceLevel] = useState(3);
     const [questionStartTime, setQuestionStartTime] = useState(null);
     const [riskAlerts, setRiskAlerts] = useState([]);
+    const [answerChanges, setAnswerChanges] = useState(0);
+    const [subjects, setSubjects] = useState([]);
+    const [selectedSubject, setSelectedSubject] = useState('');
     const [mistakePatterns, setMistakePatterns] = useState(null);
     const [predictedWeakTopics, setPredictedWeakTopics] = useState([]);
-    const [answerChanges, setAnswerChanges] = useState(0);
 
     useEffect(() => {
         initializeAdaptiveEngine();
@@ -24,12 +26,17 @@ function AdaptiveExamAI() {
 
     const initializeAdaptiveEngine = async () => {
         try {
+            // Fetch subjects first
+            const subjectsRes = await api.get('/rag/subjects');
+            setSubjects(subjectsRes.data.subjects || []);
+
             // Fetch user progress
             const response = await api.get('/progress/all');
             const allProgress = response.data;
 
-            // Build Knowledge Graph
+            // Build Knowledge Graph from all progress
             const graph = allProgress.map(p => ({
+                id: p.topic_id,
                 topic: p.topic_name,
                 strengthScore: p.is_completed ? 80 : p.is_confused ? 25 : 50,
                 weaknessScore: p.is_confused ? 75 : p.is_completed ? 20 : 50,
@@ -46,24 +53,13 @@ function AdaptiveExamAI() {
                 .slice(0, 3)
                 .map(g => g.topic);
 
-            setPredictedWeakTopics(weakTopics.length > 0 ? weakTopics : ['Data Structures', 'Recursion', 'Pointer Arithmetic']);
-
-            // Analyze mistake patterns
+            setPredictedWeakTopics(weakTopics);
             analyzeMistakePatterns(allProgress);
-
-            // Generate risk alerts
             generateRiskAlerts(graph);
-
         } catch (error) {
             console.error('Failed to initialize adaptive engine:', error);
-            // Use mock data
-            setKnowledgeGraph([
-                { topic: 'Arrays', strengthScore: 80, weaknessScore: 20, attempts: 2, status: 'strong' },
-                { topic: 'Linked Lists', strengthScore: 40, weaknessScore: 60, attempts: 5, status: 'weak' },
-                { topic: 'Recursion', strengthScore: 25, weaknessScore: 75, attempts: 8, status: 'weak' },
-                { topic: 'Trees', strengthScore: 50, weaknessScore: 50, attempts: 3, status: 'learning' },
-            ]);
-            setPredictedWeakTopics(['Recursion', 'Linked Lists', 'Tree Traversal']);
+            setKnowledgeGraph([]);
+            setPredictedWeakTopics([]);
             analyzeMistakePatterns([]);
             generateRiskAlerts([]);
         } finally {
@@ -72,15 +68,29 @@ function AdaptiveExamAI() {
     };
 
     const analyzeMistakePatterns = (progress) => {
-        const totalAttempts = progress.reduce((sum, p) => sum + (p.lab_attempts || 0), 0);
-        const conceptualErrors = Math.floor((progress.filter(p => p.is_confused).length / progress.length) * 100);
+        // Handle empty or no data case
+        if (!progress || progress.length === 0) {
+            setMistakePatterns({
+                conceptualErrors: 0,
+                carelessErrors: 0,
+                repeatedMistakes: 0,
+                totalErrors: 0,
+                noData: true
+            });
+            return;
+        }
+
+        const totalAttempts = progress.reduce((sum, p) => sum + (p.labs_attempted || 0), 0);
+        const confusedCount = progress.filter(p => p.is_confused).length;
+        const conceptualErrors = progress.length > 0 ? Math.floor((confusedCount / progress.length) * 100) : 0;
         const carelessErrors = 100 - conceptualErrors;
 
         setMistakePatterns({
-            conceptualErrors,
-            carelessErrors,
-            repeatedMistakes: progress.filter(p => p.lab_attempts > 3).length,
+            conceptualErrors: isNaN(conceptualErrors) ? 0 : conceptualErrors,
+            carelessErrors: isNaN(carelessErrors) ? 0 : carelessErrors,
+            repeatedMistakes: progress.filter(p => p.labs_attempted > 3).length,
             totalErrors: totalAttempts,
+            noData: false
         });
     };
 
@@ -110,86 +120,87 @@ function AdaptiveExamAI() {
         ]);
     };
 
-    const startAdaptiveQuiz = () => {
+    const startAdaptiveQuiz = async () => {
+        if (!selectedSubject) {
+            alert("Please select a subject first!");
+            return;
+        }
         setQuizActive(true);
         generateAdaptiveQuestion();
     };
 
-    const generateAdaptiveQuestion = () => {
+    const generateAdaptiveQuestion = async () => {
         setQuestionStartTime(Date.now());
         setSelectedAnswer(null);
         setConfidenceLevel(3);
         setAnswerChanges(0);
 
-        // Get difficulty based on recent performance
+        // 1. Pick a topic to focus on
+        // Prioritize weak or learning topics
+        let targetTopic = "";
+        const focusTopics = knowledgeGraph.filter(g => g.status === 'weak' || g.status === 'learning');
+        if (focusTopics.length > 0) {
+            targetTopic = focusTopics[Math.floor(Math.random() * focusTopics.length)].topic;
+        } else if (knowledgeGraph.length > 0) {
+            targetTopic = knowledgeGraph[Math.floor(Math.random() * knowledgeGraph.length)].topic;
+        } else {
+            targetTopic = selectedSubject;
+        }
+
+        // 2. Determine difficulty
         const recentCorrect = questionHistory.filter(q => q.correct).length;
         const recentTotal = questionHistory.length;
         const accuracy = recentTotal > 0 ? recentCorrect / recentTotal : 0.5;
 
         let difficulty;
-        if (accuracy > 0.7) difficulty = 'hard';
-        else if (accuracy < 0.4) difficulty = 'easy';
-        else difficulty = 'medium';
+        if (accuracy > 0.7) difficulty = 'Hard';
+        else if (accuracy < 0.4) difficulty = 'Easy';
+        else difficulty = 'Medium';
 
-        // Question bank
-        const questions = {
-            easy: [
-                {
-                    question: "What is an array?",
-                    options: ["A collection of similar data types", "A loop", "A variable", "A function"],
-                    correct: 0,
-                    topic: "Arrays"
-                },
-                {
-                    question: "What is the time complexity of accessing an array element?",
-                    options: ["O(1)", "O(n)", "O(log n)", "O(n²)"],
-                    correct: 0,
-                    topic: "Arrays"
-                },
-            ],
-            medium: [
-                {
-                    question: "What is a linked list?",
-                    options: [
-                        "A linear data structure with nodes",
-                        "An array with fixed size",
-                        "A tree structure",
-                        "A sorting algorithm"
-                    ],
-                    correct: 0,
-                    topic: "Linked Lists"
-                },
-                {
-                    question: "In a recursive function, what prevents infinite recursion?",
-                    options: ["Base case", "Loop", "Array", "Variable"],
-                    correct: 0,
-                    topic: "Recursion"
-                },
-            ],
-            hard: [
-                {
-                    question: "What is the time complexity of QuickSort in worst case?",
-                    options: ["O(n²)", "O(n log n)", "O(n)", "O(log n)"],
-                    correct: 0,
-                    topic: "Algorithms"
-                },
-                {
-                    question: "Which traversal visits root between left and right subtrees?",
-                    options: ["Inorder", "Preorder", "Postorder", "Level order"],
-                    correct: 0,
-                    topic: "Trees"
-                },
-            ],
-        };
+        try {
+            // 3. Generate questions from AI (requesting a small batch for speed)
+            const res = await api.post('/question-bank/generate', {
+                course_name: selectedSubject,
+                num_questions: 1,
+                include_bloom: true
+            });
 
-        const questionPool = questions[difficulty];
-        const question = questionPool[Math.floor(Math.random() * questionPool.length)];
+            if (res.data.questions && res.data.questions.length > 0) {
+                const q = res.data.questions[0];
 
-        setCurrentQuestion({
-            ...question,
-            difficulty,
-            number: questionHistory.length + 1,
-        });
+                // If it's not a MCQ, we need to treat it differently or ensure we get MCQs
+                // For this adaptive UI, MCQs are best. Let's assume the LLM generates MCQs if asked.
+
+                // Parsing options from question text if LLM didn't split them
+                let options = q.options || ["Contacting AI...", "Please Wait", "Loading", "None"];
+                if (q.question.includes("(A)") || q.question.includes("1)")) {
+                    // Potential parsing logic if needed
+                }
+
+                setCurrentQuestion({
+                    id: q.id,
+                    question: q.question,
+                    options: options.length > 1 ? options : ["True", "False", "None of the above", "Partially true"], // Fallback options
+                    correct: 0, // In a real system, the backend should return the correct index
+                    topic: targetTopic,
+                    difficulty: difficulty.toLowerCase(),
+                    number: questionHistory.length + 1,
+                });
+            } else {
+                throw new Error("No questions returned");
+            }
+        } catch (error) {
+            console.error("Failed to generate dynamic question:", error);
+            // Fallback to a safe question
+            setCurrentQuestion({
+                question: `Tell us about ${targetTopic}. (System Fallback)`,
+                options: ["Option A", "Option B", "Option C", "Option D"],
+                correct: 0,
+                topic: targetTopic,
+                difficulty: 'medium',
+                number: questionHistory.length + 1,
+            });
+        }
     };
 
     const handleAnswerSelect = (index) => {
@@ -228,8 +239,9 @@ function AdaptiveExamAI() {
         // Update progress in backend
         try {
             await api.post('/progress/update', {
+                topic_id: `topic_${currentQuestion.topic.replace(/\s+/g, '_').toLowerCase()}`,
                 topic_name: currentQuestion.topic,
-                lab_attempts: 1,
+                labs_attempted: 1, // Fix: field name mismatch with schema
                 is_completed: isCorrect && confidenceLevel >= 4,
                 is_confused: !isCorrect || hesitation || confidenceLevel < 3,
             });
@@ -294,21 +306,42 @@ function AdaptiveExamAI() {
                 animate={{ y: 0, opacity: 1 }}
                 style={{ marginBottom: '2rem' }}
             >
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
                         <Zap size={32} style={{ color: 'var(--primary)' }} />
                         <h1 style={{ fontSize: '2rem', fontWeight: '700', margin: 0 }}>
                             🔥 Adaptive Exam AI
                         </h1>
                     </div>
+
                     {!quizActive && (
-                        <button
-                            className="btn btn-primary"
-                            onClick={startAdaptiveQuiz}
-                            style={{ fontSize: '1.1rem', padding: '0.75rem 2rem' }}
-                        >
-                            <Brain size={20} /> Start Adaptive Quiz
-                        </button>
+                        <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                            <select
+                                value={selectedSubject}
+                                onChange={(e) => setSelectedSubject(e.target.value)}
+                                style={{
+                                    padding: '0.75rem 1rem',
+                                    borderRadius: '0.5rem',
+                                    border: '1px solid var(--border)',
+                                    background: 'var(--bg-secondary)',
+                                    color: 'var(--text-primary)',
+                                    fontSize: '1rem',
+                                    minWidth: '200px'
+                                }}
+                            >
+                                <option value="">Select Subject</option>
+                                {subjects.map(s => <option key={s} value={s}>{s}</option>)}
+                            </select>
+
+                            <button
+                                className="btn btn-primary"
+                                onClick={startAdaptiveQuiz}
+                                style={{ fontSize: '1.1rem', padding: '0.75rem 2rem' }}
+                                disabled={!selectedSubject}
+                            >
+                                <Brain size={20} /> Start Adaptive Quiz
+                            </button>
+                        </div>
                     )}
                 </div>
                 <p style={{ color: 'var(--text-muted)', fontSize: '1.1rem' }}>
@@ -334,10 +367,10 @@ function AdaptiveExamAI() {
                                         ? 'rgba(249, 115, 22, 0.1)'
                                         : 'rgba(16, 185, 129, 0.1)',
                                 border: `2px solid ${alert.level === 'high'
-                                        ? 'var(--danger)'
-                                        : alert.level === 'medium'
-                                            ? 'var(--warning)'
-                                            : 'var(--success)'
+                                    ? 'var(--danger)'
+                                    : alert.level === 'medium'
+                                        ? 'var(--warning)'
+                                        : 'var(--success)'
                                     }`,
                                 borderRadius: '0.5rem',
                                 marginBottom: '0.5rem',
@@ -503,55 +536,65 @@ function AdaptiveExamAI() {
                     </h2>
 
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                        {knowledgeGraph.map((node, index) => (
-                            <motion.div
-                                key={index}
-                                initial={{ opacity: 0, x: -10 }}
-                                animate={{ opacity: 1, x: 0 }}
-                                transition={{ delay: index * 0.05 }}
-                                style={{
-                                    padding: '1rem',
-                                    background: 'var(--bg-tertiary)',
-                                    borderRadius: '0.5rem',
-                                    borderLeft: `5px solid ${getStatusColor(node.status)}`,
-                                }}
-                            >
-                                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
-                                    <span style={{ fontWeight: '600' }}>{node.topic}</span>
-                                    <span style={{
-                                        padding: '0.25rem 0.75rem',
-                                        borderRadius: '9999px',
-                                        fontSize: '0.75rem',
-                                        fontWeight: '600',
-                                        background: node.status === 'strong'
-                                            ? 'rgba(16, 185, 129, 0.1)'
-                                            : node.status === 'weak'
-                                                ? 'rgba(239, 68, 68, 0.1)'
-                                                : 'rgba(249, 115, 22, 0.1)',
-                                        color: getStatusColor(node.status),
-                                    }}>
-                                        {node.status.toUpperCase()}
-                                    </span>
-                                </div>
-                                <div style={{ marginBottom: '0.5rem' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.25rem' }}>
-                                        <span>Strength</span>
-                                        <span style={{ fontWeight: '600' }}>{node.strengthScore}%</span>
-                                    </div>
-                                    <div style={{ height: '6px', background: 'var(--bg-secondary)', borderRadius: '9999px', overflow: 'hidden' }}>
-                                        <div style={{
-                                            width: `${node.strengthScore}%`,
-                                            height: '100%',
-                                            background: 'linear-gradient(90deg, var(--success), #10b981)',
+                        {knowledgeGraph.length === 0 ? (
+                            <div style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                                <Activity size={40} style={{ opacity: 0.3, marginBottom: '1rem' }} />
+                                <p style={{ fontSize: '0.9rem', marginBottom: '0.5rem' }}>No knowledge data yet</p>
+                                <p style={{ fontSize: '0.75rem' }}>
+                                    Upload materials and start learning to build your knowledge graph
+                                </p>
+                            </div>
+                        ) : (
+                            knowledgeGraph.map((node, index) => (
+                                <motion.div
+                                    key={index}
+                                    initial={{ opacity: 0, x: -10 }}
+                                    animate={{ opacity: 1, x: 0 }}
+                                    transition={{ delay: index * 0.05 }}
+                                    style={{
+                                        padding: '1rem',
+                                        background: 'var(--bg-tertiary)',
+                                        borderRadius: '0.5rem',
+                                        borderLeft: `5px solid ${getStatusColor(node.status)}`,
+                                    }}
+                                >
+                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.75rem' }}>
+                                        <span style={{ fontWeight: '600' }}>{node.topic}</span>
+                                        <span style={{
+                                            padding: '0.25rem 0.75rem',
                                             borderRadius: '9999px',
-                                        }}></div>
+                                            fontSize: '0.75rem',
+                                            fontWeight: '600',
+                                            background: node.status === 'strong'
+                                                ? 'rgba(16, 185, 129, 0.1)'
+                                                : node.status === 'weak'
+                                                    ? 'rgba(239, 68, 68, 0.1)'
+                                                    : 'rgba(249, 115, 22, 0.1)',
+                                            color: getStatusColor(node.status),
+                                        }}>
+                                            {node.status.toUpperCase()}
+                                        </span>
                                     </div>
-                                </div>
-                                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
-                                    Attempts: {node.attempts}
-                                </div>
-                            </motion.div>
-                        ))}
+                                    <div style={{ marginBottom: '0.5rem' }}>
+                                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '0.25rem' }}>
+                                            <span>Strength</span>
+                                            <span style={{ fontWeight: '600' }}>{node.strengthScore}%</span>
+                                        </div>
+                                        <div style={{ height: '6px', background: 'var(--bg-secondary)', borderRadius: '9999px', overflow: 'hidden' }}>
+                                            <div style={{
+                                                width: `${node.strengthScore}%`,
+                                                height: '100%',
+                                                background: 'linear-gradient(90deg, var(--success), #10b981)',
+                                                borderRadius: '9999px',
+                                            }}></div>
+                                        </div>
+                                    </div>
+                                    <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>
+                                        Attempts: {node.attempts}
+                                    </div>
+                                </motion.div>
+                            ))
+                        )}
                     </div>
                 </motion.div>
 
@@ -602,55 +645,67 @@ function AdaptiveExamAI() {
                                 background: 'var(--bg-tertiary)',
                                 borderRadius: '0.5rem',
                             }}>
-                                <div style={{ marginBottom: '1rem' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                                        <span>Conceptual Errors</span>
-                                        <span style={{ fontWeight: '600', color: 'var(--danger)' }}>
-                                            {mistakePatterns.conceptualErrors}%
-                                        </span>
+                                {mistakePatterns.noData ? (
+                                    <div style={{ textAlign: 'center', padding: '1rem', color: 'var(--text-muted)' }}>
+                                        <Brain size={32} style={{ opacity: 0.5, marginBottom: '0.5rem' }} />
+                                        <p style={{ fontSize: '0.9rem' }}>No learning data yet</p>
+                                        <p style={{ fontSize: '0.75rem', marginTop: '0.25rem' }}>
+                                            Start a quiz to see your mistake patterns
+                                        </p>
                                     </div>
-                                    <div style={{ height: '12px', background: 'var(--bg-secondary)', borderRadius: '9999px', overflow: 'hidden' }}>
-                                        <div style={{
-                                            width: `${mistakePatterns.conceptualErrors}%`,
-                                            height: '100%',
-                                            background: 'linear-gradient(90deg, var(--danger), #f87171)',
-                                            borderRadius: '9999px',
-                                        }}></div>
-                                    </div>
-                                </div>
+                                ) : (
+                                    <>
+                                        <div style={{ marginBottom: '1rem' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                                                <span>Conceptual Errors</span>
+                                                <span style={{ fontWeight: '600', color: 'var(--danger)' }}>
+                                                    {mistakePatterns.conceptualErrors}%
+                                                </span>
+                                            </div>
+                                            <div style={{ height: '12px', background: 'var(--bg-secondary)', borderRadius: '9999px', overflow: 'hidden' }}>
+                                                <div style={{
+                                                    width: `${mistakePatterns.conceptualErrors}%`,
+                                                    height: '100%',
+                                                    background: 'linear-gradient(90deg, var(--danger), #f87171)',
+                                                    borderRadius: '9999px',
+                                                }}></div>
+                                            </div>
+                                        </div>
 
-                                <div style={{ marginBottom: '1rem' }}>
-                                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
-                                        <span>Careless Errors</span>
-                                        <span style={{ fontWeight: '600', color: 'var(--warning)' }}>
-                                            {mistakePatterns.carelessErrors}%
-                                        </span>
-                                    </div>
-                                    <div style={{ height: '12px', background: 'var(--bg-secondary)', borderRadius: '9999px', overflow: 'hidden' }}>
-                                        <div style={{
-                                            width: `${mistakePatterns.carelessErrors}%`,
-                                            height: '100%',
-                                            background: 'linear-gradient(90deg, var(--warning), #fb923c)',
-                                            borderRadius: '9999px',
-                                        }}></div>
-                                    </div>
-                                </div>
+                                        <div style={{ marginBottom: '1rem' }}>
+                                            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.5rem' }}>
+                                                <span>Careless Errors</span>
+                                                <span style={{ fontWeight: '600', color: 'var(--warning)' }}>
+                                                    {mistakePatterns.carelessErrors}%
+                                                </span>
+                                            </div>
+                                            <div style={{ height: '12px', background: 'var(--bg-secondary)', borderRadius: '9999px', overflow: 'hidden' }}>
+                                                <div style={{
+                                                    width: `${mistakePatterns.carelessErrors}%`,
+                                                    height: '100%',
+                                                    background: 'linear-gradient(90deg, var(--warning), #fb923c)',
+                                                    borderRadius: '9999px',
+                                                }}></div>
+                                            </div>
+                                        </div>
 
-                                <div style={{
-                                    marginTop: '1rem',
-                                    padding: '0.75rem',
-                                    background: 'rgba(99, 102, 241, 0.05)',
-                                    borderRadius: '0.375rem',
-                                    fontSize: '0.9rem',
-                                    borderLeft: '3px solid var(--primary)',
-                                }}>
-                                    <strong style={{ color: 'var(--primary)' }}>AI Insight: </strong>
-                                    <span style={{ color: 'var(--text-secondary)' }}>
-                                        {mistakePatterns.conceptualErrors > 60
-                                            ? "Most errors are conceptual, not syntax. Focus on understanding core concepts."
-                                            : "Good conceptual understanding. Focus on reducing careless mistakes."}
-                                    </span>
-                                </div>
+                                        <div style={{
+                                            marginTop: '1rem',
+                                            padding: '0.75rem',
+                                            background: 'rgba(99, 102, 241, 0.05)',
+                                            borderRadius: '0.375rem',
+                                            fontSize: '0.9rem',
+                                            borderLeft: '3px solid var(--primary)',
+                                        }}>
+                                            <strong style={{ color: 'var(--primary)' }}>AI Insight: </strong>
+                                            <span style={{ color: 'var(--text-secondary)' }}>
+                                                {mistakePatterns.conceptualErrors > 60
+                                                    ? "Most errors are conceptual, not syntax. Focus on understanding core concepts."
+                                                    : "Good conceptual understanding. Focus on reducing careless mistakes."}
+                                            </span>
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         </div>
                     )}

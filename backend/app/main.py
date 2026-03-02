@@ -47,7 +47,9 @@ from app.routers import (
     auth, syllabus, theory, practical, progress,
     gamification, flashcards, pomodoro, notes,
     study_plan, recommendations, edu_agents, question_bank,
-    rag_routes
+    rag_routes, mastery,
+    onboarding, notifications, teacher, parent, admin,
+    communication_lab, career, analytics
 )
 import os
 from dotenv import load_dotenv
@@ -141,6 +143,19 @@ app.include_router(question_bank.router)  # /question-bank - Generator & Auditor
 
 # RAG System
 app.include_router(rag_routes.router)     # /rag - Document ingestion, vector search, queries
+
+# Mastery Tracking (Knowledge Tracing)
+app.include_router(mastery.router)        # /mastery - SM-2 spaced repetition, adaptive difficulty
+
+# Extended Platform Features
+app.include_router(onboarding.router)     # /onboarding - AI Discovery Onboarding Engine
+app.include_router(notifications.router)  # /notifications - Real-time notification system
+app.include_router(teacher.router)        # /teacher - Teacher dashboard APIs
+app.include_router(parent.router)         # /parent - Parent dashboard APIs
+app.include_router(admin.router)          # /admin - Admin platform management
+app.include_router(communication_lab.router)  # /communication-lab - Communication AI Lab
+app.include_router(career.router)         # /career - Career Intelligence Dashboard
+app.include_router(analytics.router)      # /analytics - Performance analytics
 
 # =============================================================================
 # ROOT ENDPOINTS

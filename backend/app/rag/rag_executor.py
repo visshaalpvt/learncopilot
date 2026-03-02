@@ -218,6 +218,8 @@ YOUR RESPONSE:"""
             chunk = result.chunk
             citations.append({
                 "source_id": i,
+                "source_name": chunk.source_file,
+                "page_label": f"Page {chunk.page_number}" if chunk.page_number else "N/A",
                 "subject": chunk.subject,
                 "topic": chunk.topic,
                 "doc_type": chunk.doc_type.value if hasattr(chunk.doc_type, 'value') else str(chunk.doc_type),

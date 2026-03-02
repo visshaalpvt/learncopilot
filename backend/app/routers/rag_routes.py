@@ -104,7 +104,8 @@ async def upload_document(
         if file_ext == '.pdf':
             processed = ingestion_pipeline.process_pdf(
                 file_path=tmp_path,
-                user_subject_hint=subject_hint
+                user_subject_hint=subject_hint,
+                original_filename=file.filename
             )
         else:
             # Text file
@@ -259,6 +260,47 @@ async def get_system_stats():
     )
 
 
+@router.post("/chat")
+async def general_chat(
+    query: str,
+    subject: Optional[str] = None
+):
+    """
+    General AI chat endpoint with optional RAG context.
+    Fulfills the 'website chat' requirement using Groq AI.
+    """
+    from ..rag import rag_executor, llm_manager, RoutingDecision, QueryRoute, QueryIntent
+    
+    # 1. Provide Contextual RAG if subject is active
+    if subject:
+        routing = RoutingDecision(
+            route=QueryRoute.RAG,
+            intent=QueryIntent.GENERAL_QUERY,
+            confidence=1.0,
+            reasoning="Answering user query with subject context.",
+            suggested_filters={"subject": subject}
+        )
+        rag_res = await rag_executor.execute(query=query, routing_decision=routing)
+        return {
+            "answer": rag_res.answer,
+            "citations": rag_res.citations,
+            "source": "rag"
+        }
+    
+    # 2. Direct LLM Response via Groq
+    completion = await llm_manager.generate(
+        prompt=query,
+        system_prompt="You are Learning Copilot AI. A professional, helpful study assistant. Use a friendly but academic tone.",
+        temperature=0.7
+    )
+    
+    return {
+        "answer": completion.content,
+        "citations": [],
+        "source": "groq"
+    }
+
+
 @router.get("/subjects")
 async def list_subjects():
     """List all indexed subjects."""
@@ -279,6 +321,114 @@ async def list_document_types():
     }
 
 
+@router.get("/documents")
+async def list_documents(subject: Optional[str] = None):
+    """List all individual documents indexed."""
+    docs = []
+    # Use a set to avoid duplicates since chunks share doc info
+    seen_docs = set()
+    
+    for chunk in vector_store.chunks.values():
+        doc_key = (chunk.source_file, chunk.subject)
+        if doc_key not in seen_docs:
+            if not subject or chunk.subject.lower() == subject.lower():
+                docs.append({
+                    "filename": chunk.source_file,
+                    "subject": chunk.subject,
+                    "type": chunk.doc_type.value if hasattr(chunk.doc_type, "value") else str(chunk.doc_type),
+                    "timestamp": chunk.timestamp
+                })
+                seen_docs.add(doc_key)
+    
+    return {"documents": docs, "total": len(docs)}
+
+
+@router.get("/curriculum/{subject}")
+async def get_curriculum(subject: str, filename: Optional[str] = None):
+    """
+    Discover the curriculum (Units/Topics) within a subject based on RAG context.
+    Optionally filter by a specific source document.
+    """
+    # 1. Try to get topics directly from vector store metadata
+    v_topics = vector_store.get_topics(subject)
+    
+    # Filter by filename if provided
+    if filename:
+        # Re-fetch with filtering if possible, or filter retrieved list
+        v_topics = [t for t in v_topics if t.get("source") == filename]
+    
+    # If we have real topics from ingestion and they look substantial, use them
+    # But still proceed to LLM extraction if there are only a few, to enrich the list
+    if v_topics and len(v_topics) > 6:
+        return {
+            "subject": subject,
+            "topics": v_topics,
+            "source": "metadata"
+        }
+
+    # 2. Fallback to LLM extraction if metadata is sparse
+    from ..rag import rag_executor, llm_manager, RoutingDecision, QueryRoute, QueryIntent
+    import json
+    
+    routing = RoutingDecision(
+        route=QueryRoute.RAG,
+        intent=QueryIntent.THEORY_EXPLANATION,
+        confidence=1.0,
+        reasoning="Extracting curriculum structure from document context.",
+        suggested_filters={"subject": subject}
+    )
+    
+    overview_query = f"Provide a comprehensive overview and table of contents for the subject: {subject}. Identify the Units and specific topics."
+    
+    # Try with subject filter first
+    rag_res = await rag_executor.execute(query=overview_query, routing_decision=routing)
+    
+    # If no results with filter, try a broad search (sometimes subjects are indexed as 'General' or similar)
+    if not rag_res.citations or len(rag_res.citations) < 2:
+        routing.suggested_filters = {} # Remove filter for broad search
+        rag_res = await rag_executor.execute(query=overview_query, routing_decision=routing)
+    
+    if not rag_res.citations:
+         return {"subject": subject, "topics": v_topics, "source": "none"}
+
+    curriculum_prompt = f"""
+    Analyze the following academic content for '{subject}' and extract a structured unit-wise curriculum. 
+    
+    INSTRUCTIONS:
+    - Identify specific Units (e.g., Unit 1: Introduction, Unit 2: Linear Data Structures).
+    - Under each unit, identify key sub-topics.
+    - RETURN ONLY a flat JSON list of objects where names include the Unit label.
+    - Example: [ {{"id": "u1", "name": "Unit 1: Introduction to Data Structures"}}, {{"id": "u2", "name": "Unit 2: Linear Structures (Stacks/Queues)"}} ]
+    
+    CONTENT:
+    {rag_res.answer}
+    
+    JSON:
+    """
+    
+    llm_res = await llm_manager.generate(curriculum_prompt, temperature=0.1)
+    
+    try:
+        json_str = llm_res.content.strip()
+        if "```json" in json_str:
+            json_str = json_str.split("```json")[1].split("```")[0].strip()
+        elif "```" in json_str:
+            json_str = json_str.split("```")[1].split("```")[0].strip()
+            
+        topics = json.loads(json_str)
+        return {
+            "subject": subject,
+            "topics": topics,
+            "source": "rag"
+        }
+    except Exception as e:
+        return {
+            "subject": subject,
+            "topics": v_topics,
+            "source": "fallback"
+        }
+
+
 @router.delete("/clear")
 async def clear_vector_store():
     """Clear all indexed documents. Use with caution."""
@@ -292,145 +442,8 @@ async def clear_vector_store():
 
 @router.post("/load-demo")
 async def load_demo_data():
-    """
-    Load sample academic content for demonstration.
-    """
-    demo_content = [
-        {
-            "title": "Data Structures - Introduction",
-            "subject": "Computer Science",
-            "content": """
-Data Structures: Introduction
-
-A data structure is a specialized format for organizing, processing, retrieving and storing data. 
-It provides a means to manage large amounts of data efficiently for uses such as large databases and internet indexing services.
-
-Types of Data Structures:
-
-1. Arrays
-An array is a collection of items stored at contiguous memory locations. The idea is to store multiple items of the same type together.
-Time Complexity: Access O(1), Search O(n), Insertion O(n), Deletion O(n)
-
-2. Linked Lists  
-A linked list is a linear data structure where each element is a separate object called a node. Each node contains data and a reference to the next node.
-Types: Singly Linked List, Doubly Linked List, Circular Linked List
-
-3. Stacks
-A stack is a linear data structure that follows the Last In First Out (LIFO) principle.
-Operations: Push (add), Pop (remove), Peek (view top)
-Applications: Expression evaluation, Backtracking, Function call management
-
-4. Queues
-A queue is a linear data structure that follows the First In First Out (FIFO) principle.
-Operations: Enqueue (add), Dequeue (remove), Front (view first)
-Applications: CPU scheduling, Disk scheduling, Breadth-first search
-
-5. Trees
-A tree is a hierarchical data structure with a root value and subtrees of children with a parent node.
-Types: Binary Tree, Binary Search Tree, AVL Tree, B-Tree
-"""
-        },
-        {
-            "title": "Database Management Systems - SQL",
-            "subject": "Computer Science", 
-            "content": """
-SQL (Structured Query Language)
-
-SQL is a standard language for managing and manipulating relational databases.
-
-Basic SQL Commands:
-
-SELECT Statement:
-SELECT column1, column2 FROM table_name WHERE condition;
-
-Example:
-SELECT name, age FROM students WHERE age > 20;
-
-INSERT Statement:
-INSERT INTO table_name (column1, column2) VALUES (value1, value2);
-
-UPDATE Statement:
-UPDATE table_name SET column1 = value1 WHERE condition;
-
-DELETE Statement:
-DELETE FROM table_name WHERE condition;
-
-JOIN Operations:
-
-1. INNER JOIN - Returns records with matching values in both tables
-2. LEFT JOIN - Returns all records from left table and matched records from right
-3. RIGHT JOIN - Returns all records from right table and matched records from left
-4. FULL OUTER JOIN - Returns all records when there is a match in either table
-
-Example of JOIN:
-SELECT orders.id, customers.name 
-FROM orders 
-INNER JOIN customers ON orders.customer_id = customers.id;
-
-Normalization:
-Process of organizing data to reduce redundancy
-- 1NF: Eliminate repeating groups
-- 2NF: Remove partial dependencies
-- 3NF: Remove transitive dependencies
-"""
-        },
-        {
-            "title": "Physics - Laws of Motion",
-            "subject": "Physics",
-            "content": """
-Newton's Laws of Motion
-
-First Law (Law of Inertia):
-An object at rest stays at rest, and an object in motion stays in motion with the same speed 
-and in the same direction, unless acted upon by an unbalanced force.
-
-Mathematical expression: If F = 0, then a = 0 (or v = constant)
-
-Second Law (Law of Acceleration):
-The acceleration of an object depends on the mass of the object and the amount of force applied.
-
-Formula: F = ma
-Where:
-- F = Force (in Newtons)
-- m = Mass (in kilograms)
-- a = Acceleration (in m/s²)
-
-Third Law (Action-Reaction):
-For every action, there is an equal and opposite reaction.
-
-If object A exerts a force on object B, then object B exerts an equal and opposite force on object A.
-F(A on B) = -F(B on A)
-
-Applications:
-1. Rocket propulsion - exhaust gases push down, rocket goes up
-2. Walking - foot pushes ground backward, ground pushes foot forward
-3. Swimming - hands push water backward, water pushes body forward
-
-Example Problems:
-Q1: A 5 kg object accelerates at 2 m/s². What is the net force?
-A1: F = ma = 5 × 2 = 10 N
-
-Q2: A force of 20 N is applied to a 4 kg mass. Find acceleration.
-A2: a = F/m = 20/4 = 5 m/s²
-"""
-        }
-    ]
-    
-    chunks_created = 0
-    
-    for demo in demo_content:
-        processed = ingestion_pipeline.process_text(
-            text=demo["content"],
-            filename=demo["title"],
-            user_subject_hint=demo["subject"]
-        )
-        vector_store.add_chunks(processed.chunks)
-        chunks_created += len(processed.chunks)
-    
+    """Endpoint preserved for API compatibility but content removed to ensure a clean state."""
     return {
         "success": True,
-        "documents_loaded": len(demo_content),
-        "chunks_created": chunks_created,
-        "subjects": list(set(d["subject"] for d in demo_content)),
-        "message": "Demo data loaded successfully. You can now query the RAG system."
+        "message": "Demo content has been removed. Please upload your own academic materials."
     }

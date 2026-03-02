@@ -15,7 +15,7 @@ import api from '../api';
 
 const QuestionBank = () => {
     const [config, setConfig] = useState({
-        course_name: 'Data Structures',
+        course_name: '',
         num_questions: 20,
         include_bloom: true,
         include_outcomes: true
@@ -30,12 +30,14 @@ const QuestionBank = () => {
         // Fetch available courses
         const fetchCourses = async () => {
             try {
-                const res = await api.get('/question-bank/get-courses');
-                setCourses(res.data.courses);
+                const res = await api.get('/rag/subjects');
+                setCourses(res.data.subjects || []);
+                if (res.data.subjects?.length > 0) {
+                    setConfig(prev => ({ ...prev, course_name: res.data.subjects[0] }));
+                }
             } catch (err) {
                 console.error("Failed to fetch courses", err);
-                // Fallback
-                setCourses(["Data Structures", "Algorithms", "Database", "Operating Systems"]);
+                setCourses([]);
             }
         };
         fetchCourses();
@@ -266,7 +268,7 @@ const QuestionBank = () => {
                                                 borderRadius: '0.5rem',
                                                 marginBottom: '1rem',
                                                 borderLeft: `4px solid ${q.difficulty === 'Easy' ? 'var(--success)' :
-                                                        q.difficulty === 'Medium' ? 'var(--warning)' : 'var(--danger)'
+                                                    q.difficulty === 'Medium' ? 'var(--warning)' : 'var(--danger)'
                                                     }`
                                             }}
                                         >

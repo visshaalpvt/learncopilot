@@ -8,6 +8,8 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: str
     full_name: Optional[str] = None
+    role: Optional[str] = "student"
+    mode: Optional[str] = "college"
 
 class UserLogin(BaseModel):
     username: str
@@ -22,6 +24,9 @@ class UserResponse(BaseModel):
     username: str
     email: str
     full_name: Optional[str]
+    role: Optional[str] = "student"
+    mode: Optional[str] = "college"
+    onboarding_completed: Optional[bool] = False
     
     class Config:
         from_attributes = True
@@ -44,6 +49,8 @@ class SyllabusResponse(BaseModel):
 class TopicRequest(BaseModel):
     topic_id: str
     topic_name: str
+    subject: Optional[str] = None
+    capability_score: Optional[int] = None # 0-100 gauge from pre-questions
 
 class TheoryResponse(BaseModel):
     topic_id: str

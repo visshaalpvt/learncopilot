@@ -9,83 +9,123 @@ import json
 
 router = APIRouter(prefix="/study-plan", tags=["Study Plan"])
 
+class WeeklyGoal(BaseModel):
+    week_number: int
+    topics: list[str]
+    estimated_hours: float
+
 class StudyPlanCreate(BaseModel):
-    exam_name: str
-    exam_date: str  # ISO format
-    topics: list[str]  # List of topic IDs
+    subject: str
+    total_weeks: int
+    hours_per_day: float
+    goal: str  # e.g., "Deep understanding", "Exam cram", "Quick overview"
 
 @router.post("/generate")
-def generate_study_plan(
+async def generate_advanced_study_plan(
     plan_data: StudyPlanCreate,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """Generate a smart study plan based on exam date"""
-    exam_date = datetime.fromisoformat(plan_data.exam_date.replace('Z', '+00:00'))
-    days_until_exam = (exam_date - datetime.utcnow()).days
+    """
+    AGENTIC AI ACTION: 
+    1. Analyzes syllabus via RAG
+    2. Considers student time constraints
+    3. Generates a week-by-week roadmap
+    """
+    from ..rag import vector_store, llm_manager
     
-    if days_until_exam < 0:
-        raise HTTPException(status_code=400, detail="Exam date is in the past")
+    # 1. Fetch topics from the Knowledge Base (Metadata or RAG)
+    v_topics = vector_store.get_topics(plan_data.subject)
     
-    # Get progress for each topic
-    topics_schedule = []
+    if not v_topics or len(v_topics) < 5:
+        # Fallback to RAG discovery logic
+        from .rag_routes import get_curriculum
+        try:
+            curriculum_res = await get_curriculum(plan_data.subject)
+            if curriculum_res.get("topics"):
+                v_topics = curriculum_res["topics"]
+        except Exception as e:
+            print(f"Curriculum discovery failed: {e}")
+
+    if not v_topics:
+         raise HTTPException(status_code=404, detail=f"No curriculum found for {plan_data.subject}. Please upload a syllabus first.")
+
+    topic_names = [t["name"] for t in v_topics]
     
-    # Rule-based scheduling algorithm
-    for i, topic_id in enumerate(plan_data.topics):
-        progress = db.query(Progress).filter(
-            Progress.user_id == current_user.id,
-            Progress.topic_id == topic_id
-        ).first()
+    # 2. Use AI to organize topics into weeks based on constraints
+    prompt = f"""
+    You are an Expert Study Planner AI. Create a {plan_data.total_weeks}-week study roadmap for the subject '{plan_data.subject}'.
+    
+    CONSTRAINTS:
+    - Available time: {plan_data.hours_per_day} hours/day
+    - Goal: {plan_data.goal}
+    - Topics to cover: {topic_names}
+    
+    Return a JSON object with:
+    - "exam_name": A professional title for the plan
+    - "weekly_plan": A list of objects with "week", "focus" (string description), and "topics" (list of topic names from the provided list).
+    
+    Organize logically (e.g., basics first, complex later).
+    """
+    
+    llm_res = await llm_manager.generate(prompt, temperature=0.1)
+    
+    try:
+        json_str = llm_res.content.strip()
+        if "```json" in json_str:
+            json_str = json_str.split("```json")[1].split("```")[0].strip()
+        elif "```" in json_str:
+            json_str = json_str.split("```")[1].split("```")[0].strip()
+            
+        plan_json = json.loads(json_str)
         
-        # Determine priority
-        if progress:
-            if progress.is_confused:
-                priority = "HIGH"
-                days_needed = 3  # More time for confusing topics
-            elif not progress.is_completed:
-                priority = "MEDIUM"
-                days_needed = 2
-            else:
-                priority = "LOW"
-                days_needed = 1  # Just revision
-        else:
-            priority = "HIGH"  # Not started yet
-            days_needed = 3
+        # Add metadata like "is_completed" for the UI
+        for week in plan_json["weekly_plan"]:
+            week["status"] = "PENDING"
+            week_topics = []
+            for t_name in week["topics"]:
+                # Check actual progress from DB
+                prog = db.query(Progress).filter(
+                    Progress.user_id == current_user.id,
+                    Progress.topic_name == t_name
+                ).first()
+                week_topics.append({
+                    "name": t_name,
+                    "completed": prog.is_completed if prog else False,
+                    "mastery": 80 if prog and prog.is_completed else (20 if prog and prog.is_confused else 0)
+                })
+            week["topics_meta"] = week_topics
+
+        # Save to DB
+        new_plan = StudyPlan(
+            user_id=current_user.id,
+            exam_name=plan_json["exam_name"],
+            exam_date=datetime.utcnow() + timedelta(weeks=plan_data.total_weeks),
+            topics_json=json.dumps(plan_json)
+        )
         
-        # Calculate study date
-        topic_index = i % max(1, days_until_exam)
-        study_date = datetime.utcnow() + timedelta(days=topic_index)
+        db.add(new_plan)
+        db.commit()
+        db.refresh(new_plan)
         
-        topics_schedule.append({
-            "topic_id": topic_id,
-            "topic_name": progress.topic_name if progress else f"Topic {i+1}",
-            "priority": priority,
-            "study_date": study_date.isoformat(),
-            "days_allocated": days_needed,
-            "is_completed": progress.is_completed if progress else False,
-            "is_confused": progress.is_confused if progress else False
-        })
-    
-    # Save study plan
-    study_plan = StudyPlan(
-        user_id=current_user.id,
-        exam_name=plan_data.exam_name,
-        exam_date=exam_date,
-        topics_json=json.dumps(topics_schedule)
-    )
-    
-    db.add(study_plan)
-    db.commit()
-    db.refresh(study_plan)
-    
-    return {
-        "id": study_plan.id,
-        "exam_name": plan_data.exam_name,
-        "exam_date": exam_date.isoformat(),
-        "days_until_exam": days_until_exam,
-        "topics_schedule": topics_schedule,
-        "message": f"Study plan created for {days_until_exam} days"
-    }
+        return plan_json
+        
+    except Exception as e:
+        print(f"Study Plan Gen Error: {e}")
+        # Simplistic fallback
+        return {
+            "exam_name": f"{plan_data.subject} Roadmap",
+            "weekly_plan": [
+                {
+                    "week": i + 1,
+                    "focus": f"Module {i+1} Fundamentals",
+                    "topics": topic_names[0:2],
+                    "topics_meta": [{"name": t, "completed": False, "mastery": 0} for t in topic_names[0:2]]
+                }
+                for i in range(plan_data.total_weeks)
+            ],
+            "agent_insight": "I've created a baseline roadmap from your curriculum topics."
+        }
 
 @router.get("/current")
 def get_current_study_plan(

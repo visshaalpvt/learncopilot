@@ -1,15 +1,19 @@
 import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-    Upload, BookOpen, Code, FileText, ChevronDown,
+    Upload, BookOpen, FileText, ChevronDown,
     ChevronUp, File, X, Sparkles, CheckCircle2,
-    AlertCircle, Search, Filter
+    Search, RefreshCw, Layers, Database, Target,
+    Download, ExternalLink, Calendar
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api';
 
 function Syllabus() {
-    const [documents, setDocuments] = useState([]);
+    const [subjects, setSubjects] = useState([]);
+    const [allDocuments, setAllDocuments] = useState([]);
+    const [expandedSubject, setExpandedSubject] = useState(null);
+    const [subjectCurriculum, setSubjectCurriculum] = useState({});
     const [showUploadForm, setShowUploadForm] = useState(false);
     const [subjectName, setSubjectName] = useState('');
     const [selectedFile, setSelectedFile] = useState(null);
@@ -17,63 +21,110 @@ function Syllabus() {
     const [dragActive, setDragActive] = useState(false);
     const [uploadSuccess, setUploadSuccess] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
+    const [systemStats, setSystemStats] = useState({ vector_store: { total_chunks: 0, total_retrievals: 0 } });
+    const [selectedDocumentBySubject, setSelectedDocumentBySubject] = useState({});
     const fileInputRef = useRef(null);
     const navigate = useNavigate();
 
     useEffect(() => {
-        fetchDocuments();
+        fetchData();
     }, []);
 
-    const fetchDocuments = async () => {
+    const fetchData = async () => {
         try {
-            const response = await api.get('/rag/subjects');
-            // For now, we'll fetch subjects and maybe later list specific docs
-            setDocuments(response.data.subjects || []);
+            // Fetch subjects
+            const subRes = await api.get('/rag/subjects');
+            setSubjects(subRes.data.subjects || []);
+
+            // Fetch all documents
+            const docRes = await api.get('/rag/documents');
+            setAllDocuments(docRes.data.documents || []);
+
+            // Fetch full stats
+            const statsRes = await api.get('/rag/stats');
+            setSystemStats(statsRes.data);
         } catch (error) {
-            console.error('Failed to fetch documents:', error);
+            console.error('Failed to fetch data:', error);
+        }
+    };
+
+    const fetchCurriculum = async (subject) => {
+        if (subjectCurriculum[subject]) return;
+        try {
+            const response = await api.get(`/rag/curriculum/${encodeURIComponent(subject)}`);
+            setSubjectCurriculum(prev => ({
+                ...prev,
+                [subject]: response.data.topics || []
+            }));
+        } catch (error) {
+            console.error(`Failed to fetch curriculum for ${subject}:`, error);
+        }
+    };
+
+    const toggleSubject = (subject) => {
+        if (expandedSubject === subject) {
+            setExpandedSubject(null);
+        } else {
+            setExpandedSubject(subject);
+            fetchCurriculum(subject);
+        }
+    };
+
+    const selectDocument = async (subject, filename) => {
+        const key = `${subject}_${filename}`;
+        if (selectedDocumentBySubject[subject] === filename) {
+            // Deselect: show all curriculum for subject
+            setSelectedDocumentBySubject(prev => ({ ...prev, [subject]: null }));
+            fetchCurriculum(subject);
+        } else {
+            setSelectedDocumentBySubject(prev => ({ ...prev, [subject]: filename }));
+            // Fetch curriculum with filename filter
+            try {
+                const response = await api.get(`/rag/curriculum/${encodeURIComponent(subject)}?filename=${encodeURIComponent(filename)}`);
+                setSubjectCurriculum(prev => ({
+                    ...prev,
+                    [subject]: response.data.topics || []
+                }));
+            } catch (error) {
+                console.error(`Failed to fetch filtered curriculum:`, error);
+            }
         }
     };
 
     const handleDrag = (e) => {
         e.preventDefault();
         e.stopPropagation();
-        if (e.type === "dragenter" || e.type === "dragover") {
-            setDragActive(true);
-        } else if (e.type === "dragleave") {
-            setDragActive(false);
-        }
+        setDragActive(e.type === "dragenter" || e.type === "dragover");
     };
 
     const handleDrop = (e) => {
         e.preventDefault();
         e.stopPropagation();
         setDragActive(false);
-
         if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-            const file = e.dataTransfer.files[0];
-            const validTypes = ['.pdf', '.txt', '.md'];
-            const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
-            if (validTypes.includes(ext)) {
-                setSelectedFile(file);
-            } else {
-                alert('Please upload a PDF, TXT or MD file');
-            }
+            validateAndSetFile(e.dataTransfer.files[0]);
         }
     };
 
     const handleFileSelect = (e) => {
         if (e.target.files && e.target.files[0]) {
-            setSelectedFile(e.target.files[0]);
+            validateAndSetFile(e.target.files[0]);
+        }
+    };
+
+    const validateAndSetFile = (file) => {
+        const validTypes = ['.pdf', '.txt', '.md'];
+        const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
+        if (validTypes.includes(ext)) {
+            setSelectedFile(file);
+        } else {
+            alert('Please upload a PDF, TXT or MD file');
         }
     };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-
-        if (!selectedFile) {
-            alert('Please select a file to upload');
-            return;
-        }
+        if (!selectedFile) return;
 
         setLoading(true);
         setUploadSuccess(null);
@@ -81,14 +132,10 @@ function Syllabus() {
         try {
             const formData = new FormData();
             formData.append('file', selectedFile);
-            if (subjectName) {
-                formData.append('subject_hint', subjectName);
-            }
+            if (subjectName) formData.append('subject_hint', subjectName);
 
             const response = await api.post('/rag/upload', formData, {
-                headers: {
-                    'Content-Type': 'multipart/form-data',
-                },
+                headers: { 'Content-Type': 'multipart/form-data' },
             });
 
             if (response.data.success) {
@@ -99,31 +146,21 @@ function Syllabus() {
                 });
                 setSubjectName('');
                 setSelectedFile(null);
-                fetchDocuments();
-
-                // Close form after a delay
+                fetchData();
                 setTimeout(() => {
                     setShowUploadForm(false);
                     setUploadSuccess(null);
                 }, 3000);
             }
         } catch (error) {
-            console.error('Upload error:', error);
             alert(error.response?.data?.detail || 'Failed to upload document');
         } finally {
             setLoading(false);
         }
     };
 
-    const removeFile = () => {
-        setSelectedFile(null);
-        if (fileInputRef.current) {
-            fileInputRef.current.value = '';
-        }
-    };
-
     return (
-        <div className="fade-in">
+        <div className="fade-in" style={{ paddingBottom: '4rem' }}>
             {/* Header */}
             <div style={{
                 marginBottom: '2.5rem',
@@ -134,454 +171,317 @@ function Syllabus() {
                 gap: '1rem'
             }}>
                 <div>
-                    <h1 style={{
-                        fontSize: '1.75rem',
-                        fontWeight: '600',
-                        color: 'var(--text-primary)',
-                        marginBottom: '0.5rem'
-                    }}>
-                        Knowledge Base
+                    <h1 style={{ fontSize: '2rem', fontWeight: '800', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
+                        Knowledge Library
                     </h1>
-                    <p style={{ color: 'var(--text-muted)', fontSize: '0.9375rem', maxWidth: '600px' }}>
-                        Upload your syllabus, lecture notes, or textbooks. Our AI automatically indexes
-                        everything to provide personalized guidance and answers.
+                    <p style={{ color: 'var(--text-secondary)', fontSize: '1rem', maxWidth: '650px' }}>
+                        Manage your study materials. Our AI indexes your PDFs and identifies chapters,
+                        topics, and key concepts to build your personalized learning path.
                     </p>
                 </div>
-                <button
-                    className={`btn ${showUploadForm ? 'btn-secondary' : 'btn-primary'}`}
-                    onClick={() => setShowUploadForm(!showUploadForm)}
-                    style={{ transition: 'all 0.2s ease' }}
-                >
-                    {showUploadForm ? <X size={18} /> : <Upload size={18} />}
-                    {showUploadForm ? 'Close' : 'Add Document'}
-                </button>
+                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                    <button className="btn btn-secondary" onClick={fetchData} style={{ padding: '0.5rem 0.75rem' }}>
+                        <RefreshCw size={18} className={loading ? 'spin' : ''} />
+                    </button>
+                    <button
+                        className={`btn ${showUploadForm ? 'btn-secondary' : 'btn-primary'}`}
+                        onClick={() => setShowUploadForm(!showUploadForm)}
+                        style={{ height: '42px', padding: '0 1.5rem' }}
+                    >
+                        {showUploadForm ? <X size={18} /> : <Upload size={18} />}
+                        {showUploadForm ? 'Cancel' : 'Upload Material'}
+                    </button>
+                </div>
             </div>
 
+            {/* Upload Area */}
             <AnimatePresence>
                 {showUploadForm && (
                     <motion.div
-                        initial={{ opacity: 0, y: -20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -20 }}
-                        style={{
-                            background: 'var(--bg-primary)',
-                            border: '1px solid var(--border)',
-                            borderRadius: '16px',
-                            padding: '2rem',
-                            marginBottom: '2.5rem',
-                            boxShadow: '0 10px 25px -5px rgba(0,0,0,0.05)'
-                        }}
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        style={{ overflow: 'hidden', marginBottom: '2.5rem' }}
                     >
-                        {uploadSuccess ? (
-                            <div style={{ textAlign: 'center', padding: '1rem' }}>
-                                <div style={{
-                                    width: '64px',
-                                    height: '64px',
-                                    background: '#ECFDF5',
-                                    borderRadius: '50%',
-                                    display: 'flex',
-                                    alignItems: 'center',
-                                    justifyContent: 'center',
-                                    margin: '0 auto 1.25rem'
-                                }}>
-                                    <CheckCircle2 size={32} color="#10B981" />
+                        <div style={{
+                            background: 'var(--bg-secondary)',
+                            border: '1px solid var(--border)',
+                            borderRadius: '20px',
+                            padding: '2rem',
+                            boxShadow: '0 20px 40px -20px rgba(0,0,0,0.1)'
+                        }}>
+                            {uploadSuccess ? (
+                                <div style={{ textAlign: 'center', padding: '1rem' }}>
+                                    <div style={{ width: '64px', height: '64px', background: 'rgba(16, 185, 129, 0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem' }}>
+                                        <CheckCircle2 size={32} color="#10B981" />
+                                    </div>
+                                    <h3>Document Indexed!</h3>
+                                    <p style={{ color: 'var(--text-secondary)' }}>{uploadSuccess.message}</p>
+                                    <div className="badge badge-primary" style={{ marginTop: '1rem' }}>
+                                        {uploadSuccess.subject} • {uploadSuccess.chunks} Chunks
+                                    </div>
                                 </div>
-                                <h3 style={{ fontSize: '1.125rem', fontWeight: '600', marginBottom: '0.5rem' }}>
-                                    Document Processed Successfully!
-                                </h3>
-                                <p style={{ color: 'var(--text-muted)', marginBottom: '1rem' }}>
-                                    {uploadSuccess.message}
-                                </p>
-                                <div style={{
-                                    display: 'inline-flex',
-                                    alignItems: 'center',
-                                    gap: '0.5rem',
-                                    background: 'var(--bg-secondary)',
-                                    padding: '0.5rem 1rem',
-                                    borderRadius: '8px',
-                                    fontSize: '0.875rem'
-                                }}>
-                                    <BookOpen size={14} /> {uploadSuccess.subject} • {uploadSuccess.chunks} Knowledge Chunks
-                                </div>
-                            </div>
-                        ) : (
-                            <form onSubmit={handleSubmit}>
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem', alignItems: 'start' }}>
-                                    <div>
-                                        <div className="form-group">
-                                            <label className="form-label">Subject Label (Optional)</label>
+                            ) : (
+                                <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+                                        <div>
+                                            <label style={{ display: 'block', fontWeight: '700', marginBottom: '0.5rem', fontSize: '0.9rem' }}>Subject Category</label>
                                             <input
-                                                type="text"
                                                 className="form-input"
-                                                placeholder="e.g., Computer Science, Engineering"
+                                                placeholder="e.g. Database Systems"
                                                 value={subjectName}
                                                 onChange={(e) => setSubjectName(e.target.value)}
                                             />
-                                            <p style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: '0.5rem' }}>
-                                                If left blank, our AI will automatically detect the subject.
-                                            </p>
                                         </div>
-
-                                        <div style={{ marginTop: '2rem' }}>
-                                            <div style={{
-                                                display: 'flex',
-                                                alignItems: 'flex-start',
-                                                gap: '0.75rem',
-                                                padding: '1rem',
-                                                background: 'var(--primary-light)',
-                                                borderRadius: '10px',
-                                                border: '1px solid #C7D2FE'
-                                            }}>
-                                                <Sparkles size={18} style={{ color: 'var(--primary)', flexShrink: 0 }} />
-                                                <p style={{ fontSize: '0.8125rem', color: 'var(--text-secondary)', lineHeight: '1.4' }}>
-                                                    <strong>AI Note:</strong> Our RAG pipeline will extract core concepts,
-                                                    labs, and exam patterns from your file to update your learning path.
-                                                </p>
-                                            </div>
+                                        <div style={{ background: 'var(--primary-light)', padding: '1rem', borderRadius: '12px', display: 'flex', gap: '0.75rem' }}>
+                                            <Sparkles size={20} color="var(--primary)" />
+                                            <p style={{ fontSize: '0.85rem', margin: 0, color: 'var(--text-primary)' }}>
+                                                <strong>AI Extracting...</strong> Our engine will automatically find chapters and units inside your file.
+                                            </p>
                                         </div>
                                     </div>
 
                                     <div
-                                        onDragEnter={handleDrag}
-                                        onDragLeave={handleDrag}
                                         onDragOver={handleDrag}
+                                        onDragLeave={handleDrag}
                                         onDrop={handleDrop}
-                                        onClick={() => !loading && fileInputRef.current?.click()}
+                                        onClick={() => fileInputRef.current.click()}
                                         style={{
                                             border: `2px dashed ${dragActive ? 'var(--primary)' : 'var(--border)'}`,
-                                            borderRadius: '12px',
+                                            borderRadius: '16px',
                                             padding: '2.5rem',
                                             textAlign: 'center',
-                                            cursor: loading ? 'wait' : 'pointer',
-                                            background: dragActive ? 'var(--primary-light)' : 'var(--bg-secondary)',
-                                            transition: 'all 0.2s ease',
-                                            minHeight: '220px',
-                                            display: 'flex',
-                                            flexDirection: 'column',
-                                            justifyContent: 'center',
-                                            alignItems: 'center',
+                                            cursor: 'pointer',
+                                            background: dragActive ? 'rgba(99, 102, 241, 0.05)' : 'rgba(0,0,0,0.02)',
+                                            transition: 'all 0.2s'
                                         }}
                                     >
-                                        <input
-                                            ref={fileInputRef}
-                                            type="file"
-                                            accept=".pdf,.txt,.md"
-                                            onChange={handleFileSelect}
-                                            style={{ display: 'none' }}
-                                            disabled={loading}
-                                        />
-
+                                        <input ref={fileInputRef} type="file" accept=".pdf,.txt,.md" style={{ display: 'none' }} onChange={handleFileSelect} />
                                         {selectedFile ? (
-                                            <div style={{ width: '100%' }}>
-                                                <div style={{
-                                                    width: '48px',
-                                                    height: '48px',
-                                                    background: 'var(--bg-primary)',
-                                                    borderRadius: '10px',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    margin: '0 auto 1rem',
-                                                    boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'
-                                                }}>
-                                                    <FileText size={24} style={{ color: 'var(--primary)' }} />
-                                                </div>
-                                                <p style={{ fontWeight: '600', color: 'var(--text-primary)', marginBottom: '0.25rem' }}>
-                                                    {selectedFile.name}
-                                                </p>
-                                                <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)' }}>
-                                                    {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
-                                                </p>
-                                                {!loading && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            removeFile();
-                                                        }}
-                                                        style={{
-                                                            marginTop: '1rem',
-                                                            background: 'none',
-                                                            border: 'none',
-                                                            color: '#EF4444',
-                                                            fontSize: '0.8125rem',
-                                                            fontWeight: '500',
-                                                            cursor: 'pointer',
-                                                            display: 'flex',
-                                                            alignItems: 'center',
-                                                            gap: '0.25rem',
-                                                            margin: '1rem auto 0'
-                                                        }}
-                                                    >
-                                                        <X size={14} /> Remove File
-                                                    </button>
-                                                )}
+                                            <div>
+                                                <FileText size={48} color="var(--primary)" style={{ marginBottom: '1rem' }} />
+                                                <div style={{ fontWeight: '700' }}>{selectedFile.name}</div>
+                                                <div style={{ fontSize: '0.8rem', opacity: 0.6 }}>{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</div>
+                                                <button type="submit" className="btn btn-primary" style={{ marginTop: '1.5rem', width: '100%' }} disabled={loading}>
+                                                    {loading ? 'Processing...' : 'Start Indexing'}
+                                                </button>
                                             </div>
                                         ) : (
                                             <>
-                                                <div style={{
-                                                    width: '56px',
-                                                    height: '56px',
-                                                    borderRadius: '50%',
-                                                    background: 'var(--bg-primary)',
-                                                    display: 'flex',
-                                                    alignItems: 'center',
-                                                    justifyContent: 'center',
-                                                    marginBottom: '1rem',
-                                                    boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)'
-                                                }}>
-                                                    <Upload size={24} style={{ color: 'var(--text-muted)' }} />
-                                                </div>
-                                                <p style={{ fontWeight: '500', color: 'var(--text-primary)', marginBottom: '0.375rem' }}>
-                                                    Click or drag and drop to upload
-                                                </p>
-                                                <p style={{ color: 'var(--text-muted)', fontSize: '0.8125rem' }}>
-                                                    PDF, Text, or Markdown (Max 10MB)
-                                                </p>
+                                                <Upload size={40} style={{ color: 'var(--text-muted)', marginBottom: '1rem' }} />
+                                                <div style={{ fontWeight: '600' }}>Drop your PDF or Notes here</div>
+                                                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Click to browse files (Max 10MB)</div>
                                             </>
                                         )}
                                     </div>
-                                </div>
-
-                                <div style={{
-                                    marginTop: '2rem',
-                                    paddingTop: '1.5rem',
-                                    borderTop: '1px solid var(--border)',
-                                    display: 'flex',
-                                    justifyContent: 'flex-end'
-                                }}>
-                                    <button
-                                        type="submit"
-                                        className="btn btn-primary"
-                                        disabled={loading || !selectedFile}
-                                        style={{ minWidth: '160px' }}
-                                    >
-                                        {loading ? (
-                                            <>
-                                                <div className="spinner" style={{ width: '16px', height: '16px' }} />
-                                                Processing...
-                                            </>
-                                        ) : (
-                                            <>
-                                                <Upload size={18} />
-                                                Upload Document
-                                            </>
-                                        )}
-                                    </button>
-                                </div>
-                            </form>
-                        )}
+                                </form>
+                            )}
+                        </div>
                     </motion.div>
                 )}
             </AnimatePresence>
 
-            {/* Document Library Sections */}
-            <div>
-                <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    marginBottom: '1.5rem'
-                }}>
-                    <h2 style={{ fontSize: '1.125rem', fontWeight: '600', color: 'var(--text-primary)' }}>
-                        Indexed Subjects
-                    </h2>
-
-                    <div style={{ position: 'relative' }}>
-                        <Search
-                            size={16}
-                            style={{
-                                position: 'absolute',
-                                left: '12px',
-                                top: '50%',
-                                transform: 'translateY(-50%)',
-                                color: 'var(--text-muted)'
-                            }}
-                        />
-                        <input
-                            type="text"
-                            placeholder="Search subjects..."
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            style={{
-                                background: 'var(--bg-primary)',
-                                border: '1px solid var(--border)',
-                                borderRadius: '8px',
-                                padding: '0.5rem 1rem 0.5rem 2.25rem',
-                                fontSize: '0.875rem',
-                                width: '240px',
-                                outline: 'none',
-                                transition: 'all 0.2s ease',
-                            }}
-                            onFocus={(e) => e.target.style.borderColor = 'var(--primary)'}
-                            onBlur={(e) => e.target.style.borderColor = 'var(--border)'}
-                        />
-                    </div>
+            {/* Knowledge Base Content */}
+            <div style={{ marginBottom: '2rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h2 style={{ fontSize: '1.25rem', fontWeight: '700' }}>Your Managed Subjects</h2>
+                <div style={{ position: 'relative', width: '300px' }}>
+                    <Search size={18} style={{ position: 'absolute', left: '12px', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+                    <input
+                        className="form-input"
+                        placeholder="Search subjects or topics..."
+                        style={{ paddingLeft: '2.5rem' }}
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                    />
                 </div>
+            </div>
 
-                {documents.length === 0 ? (
-                    <div style={{
-                        background: 'var(--bg-primary)',
-                        border: '1px solid var(--border)',
-                        borderRadius: '16px',
-                        padding: '4rem 2rem',
-                        textAlign: 'center'
-                    }}>
-                        <div style={{
-                            width: '80px',
-                            height: '80px',
-                            background: 'var(--bg-secondary)',
-                            borderRadius: '50%',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            margin: '0 auto 1.5rem'
-                        }}>
-                            <FileText size={32} style={{ color: 'var(--text-muted)' }} />
-                        </div>
-                        <h3 style={{ fontSize: '1.125rem', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '0.5rem' }}>
-                            Your Knowledge Base is Empty
-                        </h3>
-                        <p style={{ color: 'var(--text-muted)', marginBottom: '2rem', maxWidth: '400px', margin: '0 auto 2rem' }}>
-                            Upload documents to build your personalized AI tutor.
-                            Supported types include Course Syllabus, Lecture Notes, and Assignment Handouts.
-                        </p>
-                        <button className="btn btn-primary" onClick={() => setShowUploadForm(true)}>
-                            <Upload size={18} />
-                            Upload First Document
-                        </button>
-                    </div>
-                ) : (
-                    <div className="dashboard-grid">
-                        {documents
-                            .filter(sub => sub.toLowerCase().includes(searchQuery.toLowerCase()))
-                            .map((subject, index) => (
-                                <motion.div
-                                    key={subject}
-                                    initial={{ opacity: 0, scale: 0.95 }}
-                                    animate={{ opacity: 1, scale: 1 }}
-                                    transition={{ delay: index * 0.05 }}
+            {subjects.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '5rem', background: 'var(--bg-secondary)', borderRadius: '24px', border: '1px dashed var(--border)' }}>
+                    <Database size={64} style={{ opacity: 0.1, marginBottom: '1.5rem' }} />
+                    <h3>No Data Indexed Yet</h3>
+                    <p style={{ color: 'var(--text-secondary)' }}>Upload your course PDF or syllabus to start learning with AI.</p>
+                </div>
+            ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    {subjects
+                        .filter(s => s.toLowerCase().includes(searchQuery.toLowerCase()))
+                        .map(subject => (
+                            <div key={subject} style={{
+                                background: 'var(--bg-secondary)',
+                                border: '1px solid var(--border)',
+                                borderRadius: '16px',
+                                overflow: 'hidden',
+                                transition: 'all 0.3s'
+                            }}>
+                                {/* Subject Header Card */}
+                                <div
+                                    onClick={() => toggleSubject(subject)}
                                     style={{
-                                        background: 'var(--bg-primary)',
-                                        border: '1px solid var(--border)',
-                                        borderRadius: '16px',
                                         padding: '1.5rem',
                                         cursor: 'pointer',
-                                        transition: 'all 0.2s ease'
-                                    }}
-                                    whileHover={{
-                                        y: -4,
-                                        borderColor: 'var(--primary)',
-                                        boxShadow: '0 12px 20px -8px rgba(0,0,0,0.08)'
-                                    }}
-                                    onClick={() => navigate('/app/theory', { state: { subject } })}
-                                >
-                                    <div style={{
                                         display: 'flex',
                                         alignItems: 'center',
                                         justifyContent: 'space-between',
-                                        marginBottom: '1.25rem'
-                                    }}>
-                                        <div style={{
-                                            width: '40px',
-                                            height: '40px',
-                                            background: 'var(--primary-light)',
-                                            borderRadius: '10px',
-                                            display: 'flex',
-                                            alignItems: 'center',
-                                            justifyContent: 'center'
-                                        }}>
-                                            <BookOpen size={20} style={{ color: 'var(--primary)' }} />
+                                        background: expandedSubject === subject ? 'rgba(99, 102, 241, 0.03)' : 'transparent'
+                                    }}
+                                >
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '1.25rem' }}>
+                                        <div style={{ width: '48px', height: '48px', background: 'linear-gradient(135deg, var(--primary), #818cf8)', borderRadius: '12px', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', fontWeight: '800' }}>
+                                            <BookOpen size={24} />
                                         </div>
-                                        <div style={{
-                                            fontSize: '0.75rem',
-                                            fontWeight: '600',
-                                            color: 'var(--primary)',
-                                            background: 'var(--primary-light)',
-                                            padding: '0.25rem 0.625rem',
-                                            borderRadius: '20px'
-                                        }}>
-                                            Active
+                                        <div>
+                                            <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: '700' }}>{subject}</h3>
+                                            <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', display: 'flex', gap: '1rem', marginTop: '0.25rem' }}>
+                                                <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}><File size={14} /> {allDocuments.filter(d => d.subject === subject).length} Documents</span>
+                                                <span style={{ display: 'flex', alignItems: 'center', gap: '0.25rem' }}><Layers size={14} /> {subjectCurriculum[subject]?.length || '?'} Topics Detected</span>
+                                            </div>
                                         </div>
                                     </div>
-                                    <h3 style={{ fontSize: '1.0625rem', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '0.375rem' }}>
-                                        {subject}
-                                    </h3>
-                                    <p style={{ fontSize: '0.8125rem', color: 'var(--text-muted)', marginBottom: '1.25rem' }}>
-                                        AI-indexed learning material
-                                    </p>
-                                    <div style={{
-                                        display: 'flex',
-                                        alignItems: 'center',
-                                        gap: '1rem',
-                                        paddingTop: '1.25rem',
-                                        borderTop: '1px solid var(--border)'
-                                    }}>
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.375rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-                                            <FileText size={14} /> Knowledge Indexed
-                                        </div>
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
+                                        <button className="btn btn-secondary" onClick={(e) => { e.stopPropagation(); navigate('/app/theory', { state: { subject } }) }}>
+                                            Study Now <Target size={16} />
+                                        </button>
+                                        {expandedSubject === subject ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                                     </div>
-                                </motion.div>
-                            ))}
-                    </div>
-                )}
-            </div>
+                                </div>
 
-            {/* Info Footer */}
-            {!showUploadForm && documents.length > 0 && (
-                <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    transition={{ delay: 0.5 }}
-                    style={{
-                        marginTop: '4rem',
-                        padding: '2rem',
-                        background: 'var(--bg-secondary)',
-                        borderRadius: '20px',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        gap: '2rem',
-                        border: '1px solid var(--border)'
-                    }}
-                >
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '1.5rem' }}>
-                        <div style={{
-                            width: '56px',
-                            height: '56px',
-                            background: 'white',
-                            borderRadius: '14px',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            boxShadow: '0 4px 6px -1px rgba(0,0,0,0.05)',
-                            flexShrink: 0
-                        }}>
-                            <Sparkles size={24} color="var(--primary)" />
+                                {/* Expanded View: Documents & Topics */}
+                                <AnimatePresence>
+                                    {expandedSubject === subject && (
+                                        <motion.div
+                                            initial={{ height: 0, opacity: 0 }}
+                                            animate={{ height: 'auto', opacity: 1 }}
+                                            exit={{ height: 0, opacity: 0 }}
+                                            style={{ borderTop: '1px solid var(--border)', background: 'rgba(0,0,0,0.01)' }}
+                                        >
+                                            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1.8fr', gap: '0' }}>
+                                                {/* Files Column */}
+                                                <div style={{ padding: '1.5rem', borderRight: '1px solid var(--border)' }}>
+                                                    <h4 style={{ fontSize: '0.85rem', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '1rem', letterSpacing: '0.05em' }}>Source Documents</h4>
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+                                                        {allDocuments.filter(d => d.subject === subject).map((doc, idx) => (
+                                                            <div
+                                                                key={idx}
+                                                                onClick={() => selectDocument(subject, doc.filename)}
+                                                                style={{
+                                                                    padding: '0.85rem',
+                                                                    background: selectedDocumentBySubject[subject] === doc.filename ? 'var(--primary-light)' : 'white',
+                                                                    border: selectedDocumentBySubject[subject] === doc.filename ? '1px solid var(--primary)' : '1px solid var(--border)',
+                                                                    borderRadius: '10px',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    justifyContent: 'space-between',
+                                                                    cursor: 'pointer'
+                                                                }}
+                                                            >
+                                                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', maxWidth: '80%' }}>
+                                                                    <div style={{ color: 'var(--primary)', flexShrink: 0 }}><FileText size={20} /></div>
+                                                                    <div style={{
+                                                                        fontSize: '0.9rem',
+                                                                        fontWeight: '600',
+                                                                        overflow: 'hidden',
+                                                                        textOverflow: 'ellipsis',
+                                                                        whiteSpace: 'nowrap',
+                                                                        color: selectedDocumentBySubject[subject] === doc.filename ? 'var(--primary)' : 'inherit'
+                                                                    }}>{doc.filename}</div>
+                                                                </div>
+                                                                {selectedDocumentBySubject[subject] === doc.filename ? (
+                                                                    <CheckCircle2 size={16} color="var(--primary)" />
+                                                                ) : (
+                                                                    <button title="View Document" style={{ border: 'none', background: 'none', color: 'var(--text-muted)', cursor: 'pointer' }}>
+                                                                        <ExternalLink size={16} />
+                                                                    </button>
+                                                                )}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+
+                                                {/* Topics Column */}
+                                                <div style={{ padding: '1.5rem' }}>
+                                                    <h4 style={{ fontSize: '0.85rem', textTransform: 'uppercase', color: 'var(--text-muted)', marginBottom: '1rem', letterSpacing: '0.05em' }}>Identified Curriculum / Chapters</h4>
+                                                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                                                        {subjectCurriculum[subject] ? (
+                                                            subjectCurriculum[subject].map((topic, idx) => (
+                                                                <div key={idx} style={{
+                                                                    padding: '0.75rem 1rem',
+                                                                    background: 'rgba(99, 102, 241, 0.05)',
+                                                                    borderRadius: '8px',
+                                                                    fontSize: '0.875rem',
+                                                                    color: 'var(--text-primary)',
+                                                                    borderLeft: '3px solid var(--primary)',
+                                                                    display: 'flex',
+                                                                    alignItems: 'center',
+                                                                    gap: '0.5rem'
+                                                                }}>
+                                                                    <div style={{ width: '6px', height: '6px', background: 'var(--primary)', borderRadius: '50%' }}></div>
+                                                                    {topic.name}
+                                                                </div>
+                                                            ))
+                                                        ) : (
+                                                            <div style={{ gridColumn: '1/-1', textAlign: 'center', padding: '1rem', opacity: 0.5 }}>
+                                                                Analyzing chapters...
+                                                            </div>
+                                                        )}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </motion.div>
+                                    )}
+                                </AnimatePresence>
+                            </div>
+                        ))}
+                </div>
+            )}
+
+            {/* Metrics Bar */}
+            <div style={{
+                position: 'fixed',
+                bottom: '2rem',
+                left: '20rem',
+                right: '2rem',
+                background: 'rgba(15, 23, 42, 0.9)',
+                backdropFilter: 'blur(10px)',
+                borderRadius: '16px',
+                padding: '1rem 2rem',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                color: 'white',
+                boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)',
+                zIndex: 100
+            }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <div style={{ width: '32px', height: '32px', background: 'rgba(99, 102, 241, 0.2)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Layers size={18} color="var(--primary)" />
                         </div>
                         <div>
-                            <h4 style={{ fontSize: '1rem', fontWeight: '600', color: 'var(--text-primary)', marginBottom: '0.25rem' }}>
-                                Subject-Agnostic Learning
-                            </h4>
-                            <p style={{ fontSize: '0.875rem', color: 'var(--text-muted)', maxWidth: '500px' }}>
-                                Our RAG system doesn't care about the subject. From Quantum Physics to
-                                Modern History, it understands and organizes content based on your materials.
-                            </p>
+                            <div style={{ fontSize: '0.7rem', opacity: 0.6, textTransform: 'uppercase' }}>Knowledge Chunks</div>
+                            <div style={{ fontSize: '1rem', fontWeight: '700' }}>{systemStats.vector_store.total_chunks}</div>
                         </div>
                     </div>
-                    <div style={{ display: 'flex', gap: '1rem' }}>
-                        <div style={{ textAlign: 'center' }}>
-                            <div style={{ fontSize: '1.25rem', fontWeight: '700', color: 'var(--text-primary)' }}>384</div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Embeddings</div>
-                        </div>
-                        <div style={{ width: '1px', height: '40px', background: 'var(--border)' }} />
-                        <div style={{ textAlign: 'center' }}>
-                            <div style={{ fontSize: '1.25rem', fontWeight: '700', color: 'var(--text-primary)' }}>100%</div>
-                            <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Grounded</div>
+                    <div style={{ width: '1px', height: '30px', background: 'rgba(255,255,255,0.1)' }} />
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <Target size={18} color="#10b981" />
+                        <div>
+                            <div style={{ fontSize: '0.7rem', opacity: 0.6, textTransform: 'uppercase' }}>Subjects Indexed</div>
+                            <div style={{ fontSize: '1rem', fontWeight: '700' }}>{subjects.length}</div>
                         </div>
                     </div>
-                </motion.div>
-            )}
+                </div>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem' }}>
+                    <div style={{ width: '8px', height: '8px', background: '#10b981', borderRadius: '50%', boxShadow: '0 0 10px #10b981' }}></div>
+                    AI Ingestion Engine: <span style={{ fontWeight: '700', color: '#10b981' }}>OPTIMAL</span>
+                </div>
+            </div>
+
+            <style>{`
+                .spin { animation: spin 1s linear infinite; }
+                @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+            `}</style>
         </div>
     );
 }
