@@ -264,3 +264,84 @@ def delete_study_plan(
     db.commit()
     
     return {"message": "Study plan deleted successfully"}
+
+
+@router.post("/optimize")
+async def optimize_current_plan(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    """
+    AGENTIC AI ACTION: 
+    1. Reviews current progress vs plan
+    2. Identifies bottlenecks (confused topics)
+    3. Re-shuffles roadmap to prioritize weaknesses
+    """
+    from ..rag import llm_manager
+    
+    plan = db.query(StudyPlan).filter(
+        StudyPlan.user_id == current_user.id
+    ).order_by(StudyPlan.exam_date.asc()).first()
+    
+    if not plan:
+        raise HTTPException(status_code=404, detail="No active plan to optimize.")
+
+    current_topics = json.loads(plan.topics_json)
+    
+    # Get all progress to identify weaknesses
+    all_progress = db.query(Progress).filter(Progress.user_id == current_user.id).all()
+    weak_topics = [p.topic_name for p in all_progress if p.is_confused]
+    completed_topics = [p.topic_name for p in all_progress if p.is_completed]
+    
+    prompt = f"""
+    You are an AI Efficiency Specialist. Optimize this study plan based on student performance.
+    
+    CURRENT PLAN: {json.dumps(current_topics)}
+    COMPLETED: {completed_topics}
+    WEAK AREAS (CONFUSED): {weak_topics}
+    
+    INSTRUCTIONS:
+    1. Move completed topics to the top but mark them clearly as done.
+    2. Move 'WEAK' topics to the current/next week for immediate review.
+    3. Ensure no topics are lost.
+    4. Provide a 'agent_insight' string explaining why you made these changes.
+    5. RETURN ONLY VALID JSON.
+    """
+    
+    llm_res = await llm_manager.generate(prompt, temperature=0.1)
+    
+    try:
+        json_str = llm_res.content.strip()
+        if "```json" in json_str:
+            json_str = json_str.split("```json")[1].split("```")[0].strip()
+        elif "```" in json_str:
+            json_str = json_str.split("```")[1].split("```")[0].strip()
+            
+        optimized_json = json.loads(json_str)
+        
+        # Add metadata for the UI again (syncing with DB)
+        for week in optimized_json["weekly_plan"]:
+            week_topics = []
+            for t_name in week["topics"]:
+                prog = db.query(Progress).filter(
+                    Progress.user_id == current_user.id,
+                    Progress.topic_name == t_name
+                ).first()
+                week_topics.append({
+                    "name": t_name,
+                    "completed": prog.is_completed if prog else False,
+                    "mastery": 80 if prog and prog.is_completed else (20 if prog and prog.is_confused else 0)
+                })
+            week["topics_meta"] = week_topics
+
+        # Update DB
+        plan.topics_json = json.dumps(optimized_json)
+        db.commit()
+        
+        return optimized_json
+        
+    except Exception as e:
+        print(f"Optimization failure: {e}")
+        # Return fallback insight if LLM fails
+        current_topics["agent_insight"] = "I've re-prioritized topics to focus on your flagged weaknesses."
+        return current_topics

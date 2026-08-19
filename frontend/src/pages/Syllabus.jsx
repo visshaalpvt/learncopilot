@@ -407,16 +407,41 @@ function Syllabus() {
                                                                 <div key={idx} style={{
                                                                     padding: '0.75rem 1rem',
                                                                     background: 'rgba(99, 102, 241, 0.05)',
-                                                                    borderRadius: '8px',
+                                                                    borderRadius: '10px',
                                                                     fontSize: '0.875rem',
                                                                     color: 'var(--text-primary)',
-                                                                    borderLeft: '3px solid var(--primary)',
+                                                                    borderLeft: '4px solid var(--primary)',
                                                                     display: 'flex',
+                                                                    justifyContent: 'space-between',
                                                                     alignItems: 'center',
-                                                                    gap: '0.5rem'
+                                                                    gap: '0.5rem',
+                                                                    transition: 'all 0.2s ease',
                                                                 }}>
-                                                                    <div style={{ width: '6px', height: '6px', background: 'var(--primary)', borderRadius: '50%' }}></div>
-                                                                    {topic.name}
+                                                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', flex: 1, minWidth: 0 }}>
+                                                                        <div style={{ width: '6px', height: '6px', background: 'var(--primary)', borderRadius: '50%', flexShrink: 0 }}></div>
+                                                                        <span style={{ fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{topic.name}</span>
+                                                                    </div>
+                                                                    <div style={{ display: 'flex', gap: '0.25rem', flexShrink: 0 }}>
+                                                                        <button
+                                                                            onClick={() => navigate('/app/theory', { state: { subject, topic } })}
+                                                                            title="Learn with AI Tutor"
+                                                                            style={{
+                                                                                padding: '0.25rem 0.6rem',
+                                                                                fontSize: '0.75rem',
+                                                                                borderRadius: '6px',
+                                                                                border: 'none',
+                                                                                background: 'var(--primary)',
+                                                                                color: 'white',
+                                                                                cursor: 'pointer',
+                                                                                fontWeight: 600,
+                                                                                display: 'flex',
+                                                                                alignItems: 'center',
+                                                                                gap: '0.25rem'
+                                                                            }}
+                                                                        >
+                                                                            <Sparkles size={12} /> Learn
+                                                                        </button>
+                                                                    </div>
                                                                 </div>
                                                             ))
                                                         ) : (
@@ -441,38 +466,41 @@ function Syllabus() {
                 bottom: '2rem',
                 left: '20rem',
                 right: '2rem',
-                background: 'rgba(15, 23, 42, 0.9)',
+                background: 'rgba(255, 255, 255, 0.95)',
                 backdropFilter: 'blur(10px)',
+                border: '1px solid var(--border)',
                 borderRadius: '16px',
                 padding: '1rem 2rem',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
-                color: 'white',
-                boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2)',
+                color: 'var(--text-primary)',
+                boxShadow: '0 10px 30px -5px rgba(0, 0, 0, 0.08), 0 4px 10px rgba(79, 70, 229, 0.05)',
                 zIndex: 100
             }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '2rem' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                        <div style={{ width: '32px', height: '32px', background: 'rgba(99, 102, 241, 0.2)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <div style={{ width: '36px', height: '36px', background: 'var(--primary-light)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                             <Layers size={18} color="var(--primary)" />
                         </div>
                         <div>
-                            <div style={{ fontSize: '0.7rem', opacity: 0.6, textTransform: 'uppercase' }}>Knowledge Chunks</div>
-                            <div style={{ fontSize: '1rem', fontWeight: '700' }}>{systemStats.vector_store.total_chunks}</div>
+                            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase' }}>Knowledge Chunks</div>
+                            <div style={{ fontSize: '1rem', fontWeight: '700', color: 'var(--text-primary)' }}>{systemStats.vector_store.total_chunks}</div>
                         </div>
                     </div>
-                    <div style={{ width: '1px', height: '30px', background: 'rgba(255,255,255,0.1)' }} />
+                    <div style={{ width: '1px', height: '30px', background: 'var(--border)' }} />
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                        <Target size={18} color="#10b981" />
+                        <div style={{ width: '36px', height: '36px', background: 'rgba(16, 185, 129, 0.1)', borderRadius: '10px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            <Target size={18} color="#10b981" />
+                        </div>
                         <div>
-                            <div style={{ fontSize: '0.7rem', opacity: 0.6, textTransform: 'uppercase' }}>Subjects Indexed</div>
-                            <div style={{ fontSize: '1rem', fontWeight: '700' }}>{subjects.length}</div>
+                            <div style={{ fontSize: '0.7rem', color: 'var(--text-muted)', fontWeight: '600', textTransform: 'uppercase' }}>Subjects Indexed</div>
+                            <div style={{ fontSize: '1rem', fontWeight: '700', color: 'var(--text-primary)' }}>{subjects.length}</div>
                         </div>
                     </div>
                 </div>
 
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-secondary)' }}>
                     <div style={{ width: '8px', height: '8px', background: '#10b981', borderRadius: '50%', boxShadow: '0 0 10px #10b981' }}></div>
                     AI Ingestion Engine: <span style={{ fontWeight: '700', color: '#10b981' }}>OPTIMAL</span>
                 </div>

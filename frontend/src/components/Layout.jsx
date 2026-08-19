@@ -20,29 +20,25 @@ function Layout() {
     const role = user?.role || 'student';
     const mode = user?.mode || 'college';
 
-    // Student Navigation - comprehensive
+    // Student Navigation - streamlined, premium, uncluttered
     const studentNav = [
-        { section: 'LEARNING' },
+        { section: 'CORE STUDY' },
         { label: 'Dashboard', path: '/app/dashboard', icon: Home },
         { label: 'Upload Syllabus', path: '/app/syllabus', icon: Upload },
-        { label: 'AI Tutor', path: '/app/theory', icon: Brain },
+        { label: 'AI Theory Tutor', path: '/app/theory', icon: Brain },
         { label: 'Study Roadmap', path: '/app/study-roadmap', icon: Map },
-        { section: 'PRACTICE' },
-        { label: 'Adaptive Quiz', path: '/app/adaptive-exam-ai', icon: Zap },
+        { section: 'PRACTICE & LABS' },
+        { label: 'Adaptive Quiz & Prep', path: '/app/adaptive-exam-ai', icon: Zap },
+        { label: 'Practical Code Lab', path: '/app/practical', icon: Gamepad2 },
         { label: 'Question Bank', path: '/app/question-bank', icon: FileText },
-        { label: 'Exam Prep', path: '/app/exam-prep', icon: Target },
-        { label: 'Revision Queue', path: '/app/revision-queue', icon: Calendar },
-        { section: 'AI TOOLS' },
+        { section: 'AI INTELLIGENCE' },
+        { label: 'AI Agents Hub', path: '/app/edu-agents', icon: Bot },
         { label: 'Communication Lab', path: '/app/communication-lab', icon: Mic },
-        { label: 'AI Agents', path: '/app/edu-agents', icon: Bot },
-        { label: 'Weakness Analysis', path: '/app/weakness', icon: TrendingUp },
-        { section: 'TRACK' },
-        { label: 'Mastery Progress', path: '/app/progress', icon: Award },
-        { label: 'Analytics', path: '/app/analytics', icon: BarChart3 },
         ...(mode === 'college' ? [
-            { section: 'CAREER' },
-            { label: 'Career Intelligence', path: '/app/career', icon: Briefcase },
+            { label: 'Career Hub', path: '/app/career', icon: Briefcase },
         ] : []),
+        { section: 'ANALYTICS' },
+        { label: 'Mastery & Progress', path: '/app/progress', icon: Award },
         { section: '' },
         { label: 'Settings', path: '/app/settings', icon: Settings },
     ];

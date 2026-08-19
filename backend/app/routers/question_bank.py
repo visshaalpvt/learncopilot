@@ -209,27 +209,39 @@ async def generate_questions(request: QuestionRequest):
     
     questions = []
     try:
-        json_str = llm_res.content.strip()
-        if "```json" in json_str:
-            json_str = json_str.split("```json")[1].split("```")[0].strip()
-        elif "```" in json_str:
-            json_str = json_str.split("```")[1].split("```")[0].strip()
-        
-        raw_questions = json.loads(json_str)
-        # Ensure they match our schema
-        for i, q in enumerate(raw_questions):
-            questions.append(QuestionItem(
-                id=q.get("id", i+1),
-                question=q.get("question", "Sample question?"),
-                type=q.get("type", "Short Answer"),
-                bloom_level=q.get("bloom_level", "Understand"),
-                course_outcome=q.get("course_outcome", "CO1"),
-                difficulty=q.get("difficulty", "Medium"),
-                marks=q.get("marks", 5),
-                answer_key=q.get("answer_key", "Solution...")
-            ))
-    except:
-        # Fallback if LLM fails - use topics from vector store
+        try:
+            json_str = llm_res.content.strip()
+            if "```json" in json_str:
+                json_str = json_str.split("```json")[1].split("```")[0].strip()
+            elif "```" in json_str:
+                json_str = json_str.split("```")[1].split("```")[0].strip()
+            
+            raw_questions = json.loads(json_str)
+            
+            # If the LLM returned a dict with a 'questions' key instead of a list
+            if isinstance(raw_questions, dict) and "questions" in raw_questions:
+                raw_questions = raw_questions["questions"]
+                
+            # Ensure they match our schema
+            for i, q in enumerate(raw_questions):
+                if not isinstance(q, dict): continue
+                questions.append(QuestionItem(
+                    id=q.get("id", i+1),
+                    question=q.get("question", "Sample question?"),
+                    type=q.get("type", "Short Answer"),
+                    bloom_level=q.get("bloom_level", "Understand"),
+                    course_outcome=q.get("course_outcome", "CO1"),
+                    difficulty=q.get("difficulty", "Medium"),
+                    marks=q.get("marks", 5),
+                    answer_key=q.get("answer_key", "Solution...")
+                ))
+        except (json.JSONDecodeError, ValueError, KeyError) as e:
+            print(f"Question parsing error: {e}. Falling back to mock generator.")
+            # Trigger fallback
+            raise Exception("Parsing failed")
+            
+    except Exception as e:
+        # Fallback if LLM fails or returns garbage - use topics from vector store
         from ..rag import vector_store
         v_topics = vector_store.get_topics(request.course_name)
         topic_names = [t["name"] for t in v_topics] if v_topics else ["Unit 1", "Unit 2"]

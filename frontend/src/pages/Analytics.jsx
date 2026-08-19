@@ -1,8 +1,7 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
-    BarChart3, Clock, TrendingUp, Target, Calendar, Brain,
-    Sparkles, PieChart as PieChartIcon, Activity, Award
+    Sparkles, PieChart as PieChartIcon, Activity, Award, Download, FileText
 } from 'lucide-react';
 import {
     AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -16,6 +15,7 @@ const COLORS = ['#6366f1', '#10b981', '#f59e0b', '#3b82f6', '#8b5cf6', '#ef4444'
 function Analytics() {
     const [loading, setLoading] = useState(true);
     const [analytics, setAnalytics] = useState(null);
+    const [exporting, setExporting] = useState(false);
 
     useEffect(() => {
         fetchAnalytics();
@@ -65,6 +65,27 @@ function Analytics() {
         }
     };
 
+    const handleDownloadReport = async () => {
+        setExporting(true);
+        try {
+            const response = await api.get('/analytics/report', {
+                responseType: 'blob'
+            });
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', 'My_Performance_Report.pdf');
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+        } catch (error) {
+            console.error('Failed to download report:', error);
+            alert('Failed to generate PDF report.');
+        } finally {
+            setExporting(false);
+        }
+    };
+
     if (loading) {
         return (
             <div style={{ textAlign: 'center', padding: '5rem' }}>
@@ -110,7 +131,15 @@ function Analytics() {
                     <p style={{ color: 'var(--text-muted)', margin: 0 }}>Real-time cognitive metrics and learning trajectory</p>
                 </div>
 
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                <div style={{ display: 'flex', gap: '0.75rem' }}>
+                    <button
+                        className="btn btn-primary"
+                        onClick={handleDownloadReport}
+                        disabled={exporting}
+                    >
+                        <Download size={18} />
+                        {exporting ? 'Generating PDF...' : 'Download Full PDF Report'}
+                    </button>
                     <div style={{
                         background: 'var(--bg-secondary)',
                         padding: '0.5rem 1rem',

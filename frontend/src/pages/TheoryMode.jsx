@@ -77,7 +77,8 @@ function TheoryMode() {
 
     useEffect(() => {
         if (selectedTopic) {
-            startAssessment(selectedTopic);
+            setPreAssessmentActive(false);
+            fetchTheoryContent(selectedTopic, 75);
         }
     }, [selectedTopic]);
 
@@ -86,7 +87,6 @@ function TheoryMode() {
         setPreAssessmentActive(true);
         setAssessmentAnswers({});
         setCapabilityScore(null);
-        setTheoryContent(null);
 
         try {
             const response = await api.post('/theory/pre-assessment', {
@@ -97,8 +97,8 @@ function TheoryMode() {
             setAssessmentQuestions(response.data.questions || []);
         } catch (error) {
             console.error('Failed to load pre-assessment:', error);
-            // Fallback: skip assessment
-            fetchTheoryContent(topic, 50);
+            setPreAssessmentActive(false);
+            fetchTheoryContent(topic, 75);
         } finally {
             setAssessmentLoading(false);
         }
@@ -111,7 +111,7 @@ function TheoryMode() {
                 correctCount++;
             }
         });
-        const score = Math.round((correctCount / assessmentQuestions.length) * 100);
+        const score = assessmentQuestions.length > 0 ? Math.round((correctCount / assessmentQuestions.length) * 100) : 75;
         setCapabilityScore(score);
         setPreAssessmentActive(false);
         fetchTheoryContent(selectedTopic, score);

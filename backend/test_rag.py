@@ -11,6 +11,7 @@ def test_rag_endpoints():
     print("TESTING RAG SYSTEM ENDPOINTS")
     print("=" * 60)
     
+    
     # Test 1: Load demo data
     print("\n1. Loading demo data...")
     try:
@@ -65,6 +66,7 @@ def test_rag_endpoints():
             print(f"   ✗ Error: {resp.text}")
     except Exception as e:
         print(f"   ✗ Exception: {e}")
+
     
     # Test 4: Route preview
     print("\n4. Testing route preview...")

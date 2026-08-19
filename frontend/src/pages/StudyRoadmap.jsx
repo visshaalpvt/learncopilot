@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
     Calendar,
@@ -11,7 +12,12 @@ import {
     BarChart3,
     ArrowRight,
     Brain,
-    Rocket
+    Rocket,
+    RefreshCw,
+    Download,
+    FileText,
+    Activity,
+    ListChecks
 } from 'lucide-react';
 import api from '../api';
 import {
@@ -24,6 +30,7 @@ import {
 } from 'recharts';
 
 function StudyRoadmap() {
+    const navigate = useNavigate();
     const [loading, setLoading] = useState(true);
     const [plan, setPlan] = useState(null);
     const [planId, setPlanId] = useState(null);
@@ -35,10 +42,25 @@ function StudyRoadmap() {
         goal: 'Deep understanding'
     });
     const [generating, setGenerating] = useState(false);
+    const [optimizing, setOptimizing] = useState(false);
+    const [exporting, setExporting] = useState(false);
+    const [aiInsight, setAiInsight] = useState("Your cognitive roadmap is ready. I've optimized the sequence for maximum retention.");
 
     useEffect(() => {
         fetchInitialData();
+        fetchAiInsights();
     }, []);
+
+    const fetchAiInsights = async () => {
+        try {
+            const res = await api.get('/recommendations/smart-insights');
+            if (res.data.insights && res.data.insights.length > 0) {
+                setAiInsight(res.data.insights[0]);
+            }
+        } catch (e) {
+            console.error("Failed to fetch insights", e);
+        }
+    };
 
     const fetchInitialData = async () => {
         try {
@@ -93,6 +115,43 @@ function StudyRoadmap() {
             alert('Failed to generate roadmap. Ensure you have uploaded a syllabus for this subject.');
         } finally {
             setGenerating(false);
+        }
+    };
+
+    const handleOptimize = async () => {
+        setOptimizing(true);
+        try {
+            const response = await api.post('/study-plan/optimize');
+            setPlan(response.data);
+            if (response.data.agent_insight) {
+                setAiInsight(response.data.agent_insight);
+            }
+        } catch (error) {
+            console.error('Failed to optimize plan:', error);
+            alert('Could not optimize plan. Please try again later.');
+        } finally {
+            setOptimizing(false);
+        }
+    };
+
+    const handleDownloadReport = async () => {
+        setExporting(true);
+        try {
+            const response = await api.get('/analytics/report', {
+                responseType: 'blob'
+            });
+            const url = window.URL.createObjectURL(new Blob([response.data]));
+            const link = document.createElement('a');
+            link.href = url;
+            link.setAttribute('download', 'My_Study_Report.pdf');
+            document.body.appendChild(link);
+            link.click();
+            link.remove();
+        } catch (error) {
+            console.error('Failed to download report:', error);
+            alert('Failed to generate PDF report.');
+        } finally {
+            setExporting(false);
         }
     };
 
@@ -259,16 +318,36 @@ function StudyRoadmap() {
                                                 opacity: topic.completed ? 0.7 : 1
                                             }}
                                         >
-                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1, minWidth: 0 }}>
                                                 {topic.completed ? (
                                                     <CheckCircle2 size={20} color="var(--success)" />
                                                 ) : (
                                                     <Circle size={20} color="var(--border)" />
                                                 )}
-                                                <span style={{ fontWeight: 500 }}>{topic.name}</span>
+                                                <span style={{ fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{topic.name}</span>
                                             </div>
-                                            <div style={{ fontSize: '0.85rem', fontWeight: 600, color: (topic.mastery || 0) >= 80 ? 'var(--success)' : (topic.mastery || 0) > 0 ? 'var(--warning)' : 'var(--text-muted)' }}>
-                                                {topic.mastery || 0}% Mastery
+                                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                                <div style={{ fontSize: '0.85rem', fontWeight: 600, color: (topic.mastery || 0) >= 80 ? 'var(--success)' : (topic.mastery || 0) > 0 ? 'var(--warning)' : 'var(--text-muted)' }}>
+                                                    {topic.mastery || 0}% Mastery
+                                                </div>
+                                                <button
+                                                    onClick={() => navigate('/app/theory', { state: { subject: selectedSubject || 'Core Subject', topic: { id: `topic_${tIdx}`, name: topic.name } } })}
+                                                    style={{
+                                                        padding: '0.25rem 0.6rem',
+                                                        fontSize: '0.75rem',
+                                                        borderRadius: '6px',
+                                                        border: 'none',
+                                                        background: 'var(--primary)',
+                                                        color: 'white',
+                                                        cursor: 'pointer',
+                                                        fontWeight: 600,
+                                                        display: 'flex',
+                                                        alignItems: 'center',
+                                                        gap: '0.25rem'
+                                                    }}
+                                                >
+                                                    <Sparkles size={12} /> Learn
+                                                </button>
                                             </div>
                                         </div>
                                     ))}
@@ -311,14 +390,31 @@ function StudyRoadmap() {
                         {/* Agent Insight */}
                         <div className="card" style={{ background: 'var(--primary-light)', border: '1px solid var(--primary-light)', padding: '1.5rem' }}>
                             <h4 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--primary)', marginBottom: '0.75rem' }}>
-                                <Sparkles size={18} /> Agent Reflection
+                                <Sparkles size={18} /> AI Recommendations
                             </h4>
                             <p style={{ fontSize: '0.95rem', lineHeight: 1.6, color: 'var(--text-secondary)' }}>
-                                {plan.agent_insight || "I've structured this plan to optimize your learning sequence. Follow the weekly focus blocks for best results."}
+                                {aiInsight}
                             </p>
-                            <button className="btn btn-primary" style={{ marginTop: '1rem', width: '100%', fontSize: '0.9rem' }}>
-                                Optimize My Plan
-                            </button>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1rem' }}>
+                                <button
+                                    className="btn btn-primary"
+                                    style={{ width: '100%', fontSize: '0.9rem' }}
+                                    onClick={handleOptimize}
+                                    disabled={optimizing}
+                                >
+                                    <RefreshCw size={16} className={optimizing ? "spin" : ""} />
+                                    {optimizing ? 'Analyzing...' : 'Optimize My Plan'}
+                                </button>
+                                <button
+                                    className="btn btn-secondary"
+                                    style={{ width: '100%', fontSize: '0.9rem', background: 'white' }}
+                                    onClick={handleDownloadReport}
+                                    disabled={exporting}
+                                >
+                                    <FileText size={16} />
+                                    {exporting ? 'Exporting...' : 'Download Detailed Report'}
+                                </button>
+                            </div>
                         </div>
 
                         <button
