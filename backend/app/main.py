@@ -100,14 +100,23 @@ app = FastAPI(
 # =============================================================================
 # CORS MIDDLEWARE CONFIGURATION
 # =============================================================================
-# Cross-Origin Resource Sharing (CORS) allows the frontend (React) to 
-# communicate with this backend API from a different origin/port.
-# 
-# Security Note: In production, replace "*" with specific allowed origins
-# Example: allow_origins=["https://learncopilot.vercel.app"]
+frontend_url_env = os.getenv("FRONTEND_URL", "")
+allowed_origins = [
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "http://localhost:5174",
+    "https://learncopilot.vercel.app",
+]
+if frontend_url_env:
+    for url in frontend_url_env.split(","):
+        clean_url = url.strip()
+        if clean_url and clean_url not in allowed_origins:
+            allowed_origins.append(clean_url)
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=allowed_origins,
+    allow_origin_regex=r"https://.*\.vercel\.app",
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
