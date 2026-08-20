@@ -1,0 +1,8 @@
+{
+  "name": "learncopilot-app",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "build": "if [ -d \"frontend\" ]; then cd frontend && npm install && npm run build; else npm run build; fi"
+  }
+}
