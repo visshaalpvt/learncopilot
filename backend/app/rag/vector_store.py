@@ -122,14 +122,17 @@ class VectorStore:
         query: str,
         top_k: int = 5,
         subject_filter: Optional[str] = None,
-        min_score: float = 0.05
+        doc_type_filter: Optional[DocumentType] = None,
+        difficulty_filter: Optional[Difficulty] = None,
+        min_score: float = 0.05,
+        **kwargs
     ) -> List[RetrievalResult]:
-        """Hybrid Retrieval: Vector Similarity + Keyword Match."""
+        """Hybrid Retrieval: Vector Similarity + Keyword Match with Metadata Filtering."""
         self.total_retrievals += 1
         query_vec = self.embedder.embed(query)
         query_words = set(re.findall(r'\w+', query.lower()))
         
-        # Filter candidates
+        # Filter candidates by subject
         candidates = list(self.chunks.keys())
         if subject_filter:
             target = subject_filter.strip().title()
@@ -139,11 +142,28 @@ class VectorStore:
                     if s.lower() == subject_filter.lower().strip():
                         candidates = cids
                         break
+            # Fallback to all candidates if subject not found in index
+            if not candidates:
+                candidates = list(self.chunks.keys())
+
+        # Filter by doc_type if specified
+        if doc_type_filter:
+            candidates = [
+                cid for cid in candidates
+                if self.chunks[cid].doc_type == doc_type_filter
+            ] or candidates
+
+        # Filter by difficulty if specified
+        if difficulty_filter:
+            candidates = [
+                cid for cid in candidates
+                if self.chunks[cid].difficulty == difficulty_filter
+            ] or candidates
             
         results = []
         for cid in candidates:
             # 1. Vector Score
-            vec_score = np.dot(query_vec, self.embeddings[cid])
+            vec_score = float(np.dot(query_vec, self.embeddings[cid])) if cid in self.embeddings else 0.0
             
             # 2. Keyword Boost
             chunk_words = set(re.findall(r'\w+', self.chunks[cid].content.lower()))

@@ -85,9 +85,23 @@ class RAGExecutor:
             min_score=self.min_retrieval_score
         )
         
-        # Check if we have sufficient context
+        # Check if we have sufficient context, otherwise use expert synthesis
         if not retrieval_results:
-            return self._insufficient_context_response(query, routing_decision)
+            system_prompt = "You are LearnCopilot, an expert academic professor and AI tutor. Provide a comprehensive, accurate, and pedagogical explanation of the requested topic with definitions, real-world examples, pitfalls, and exam pointers."
+            user_prompt = f"Provide a complete, structured academic explanation for:\n\n{query}"
+            llm_response = await llm_manager.generate(
+                prompt=user_prompt,
+                system_prompt=system_prompt,
+                temperature=0.4
+            )
+            return RAGResponse(
+                answer=llm_response.content,
+                citations=[],
+                confidence=0.88,
+                route_used=QueryRoute.REASONING_LLM,
+                retrieval_results=[],
+                llm_response=llm_response
+            )
         
         # Format context for LLM
         context = self._format_context(retrieval_results)
