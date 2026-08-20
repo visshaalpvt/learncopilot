@@ -7,10 +7,6 @@ from app.dependencies import get_current_user
 from datetime import datetime, timedelta
 from typing import List, Dict, Any
 
-from fastapi.responses import FileResponse
-import tempfile
-from fpdf import FPDF
-import os
 
 router = APIRouter(prefix="/analytics", tags=["Analytics"])
 
