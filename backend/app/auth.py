@@ -1,35 +1,15 @@
 from datetime import datetime, timedelta
 from typing import Optional
 import os
-import json
 from dotenv import load_dotenv
-import firebase_admin
-from firebase_admin import credentials, auth
+from jose import JWTError, jwt
 from passlib.context import CryptContext
 
 load_dotenv()
 
-# Initialize Firebase Admin safely
-if not firebase_admin._apps:
-    try:
-        firebase_creds_json = os.getenv("FIREBASE_CREDENTIALS")
-        if firebase_creds_json:
-            cred_dict = json.loads(firebase_creds_json)
-            cred = credentials.Certificate(cred_dict)
-            firebase_admin.initialize_app(cred)
-            print("[Auth] Firebase Admin initialized from FIREBASE_CREDENTIALS environment variable.")
-        else:
-            # Fall back to file (for local development)
-            cred_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "firebase-service-account.json")
-            if os.path.exists(cred_path):
-                cred = credentials.Certificate(cred_path)
-                firebase_admin.initialize_app(cred)
-                print("[Auth] Firebase Admin initialized from local service account file.")
-            else:
-                print("[Auth] Warning: firebase-service-account.json not found and FIREBASE_CREDENTIALS env var not set. Firebase auth running in fallback mode.")
-    except Exception as e:
-        print(f"[Auth] Warning during Firebase initialization: {e}")
-
+SECRET_KEY = os.getenv("SECRET_KEY", "learncopilot-secret-key-2026")
+ALGORITHM = os.getenv("ALGORITHM", "HS256")
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES", "43200"))
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
@@ -39,10 +19,16 @@ def verify_password(plain_password: str, hashed_password: str) -> bool:
 def get_password_hash(password: str) -> str:
     return pwd_context.hash(password)
 
-def verify_firebase_token(token: str):
+def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+    to_encode = data.copy()
+    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+def verify_token(token: str):
     try:
-        decoded_token = auth.verify_id_token(token)
-        return decoded_token
-    except Exception as e:
-        print(f"Error verifying firebase token: {e}")
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return payload
+    except JWTError as e:
+        print(f"Error verifying JWT token: {e}")
         return None

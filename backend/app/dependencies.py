@@ -3,14 +3,14 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from app.database import get_db
 from app.models import User
-from app.auth import verify_firebase_token, get_password_hash
+from app.auth import verify_token, get_password_hash
 
 security = HTTPBearer()
 
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security), db: Session = Depends(get_db)):
     token = credentials.credentials
     
-    # Demo mode — bypass Firebase, use/create a demo user in DB
+    # Demo mode — bypass auth, use/create a demo user in DB
     if token == "demo-token":
         demo_user = db.query(User).filter(User.email == "demo@learncopilot.ai").first()
         if not demo_user:
@@ -28,26 +28,25 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
             db.refresh(demo_user)
         return demo_user
     
-    payload = verify_firebase_token(token)
+    payload = verify_token(token)
     
     if payload is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid or expired Firebase token",
+            detail="Invalid or expired token",
         )
-    email: str = payload.get("email")
+    email: str = payload.get("sub")
     if email is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Token does not contain email",
+            detail="Token does not contain user info",
         )
     
     user = db.query(User).filter(User.email == email).first()
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found in local database",
+            detail="User not found in database",
         )
     
     return user
-

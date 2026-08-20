@@ -1,15 +1,5 @@
 import { createContext, useContext, useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import {
-    signInWithEmailAndPassword,
-    createUserWithEmailAndPassword,
-    signOut,
-    onAuthStateChanged,
-    getIdToken,
-    GoogleAuthProvider,
-    signInWithPopup
-} from 'firebase/auth';
-import { auth } from './firebase';
 import api from './api';
 
 const AuthContext = createContext();
@@ -20,19 +10,16 @@ export function AuthProvider({ children }) {
     const navigate = useNavigate();
 
     useEffect(() => {
-        const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-            if (firebaseUser) {
-                const token = await getIdToken(firebaseUser);
-                localStorage.setItem('token', token);
-                await fetchUser();
-            } else {
+        const token = localStorage.getItem('token');
+        if (token) {
+            fetchUser().catch(() => {
                 localStorage.removeItem('token');
                 setUser(null);
                 setLoading(false);
-            }
-        });
-
-        return () => unsubscribe();
+            });
+        } else {
+            setLoading(false);
+        }
     }, []);
 
     const fetchUser = async () => {
@@ -42,55 +29,18 @@ export function AuthProvider({ children }) {
             return response.data;
         } catch (error) {
             console.error('Error fetching user profile:', error);
-            if (error.response?.status === 401 && auth.currentUser) {
-                console.log("User not in DB, attempting to sync...");
-                const syncedUser = await syncGoogleUser(auth.currentUser);
-                return syncedUser;
-            }
             throw error;
         } finally {
             setLoading(false);
         }
     };
 
-    const syncGoogleUser = async (firebaseUser) => {
-        try {
-            await api.post('/auth/register', {
-                username: firebaseUser.email.split('@')[0].replace(/[^a-zA-Z0-9]/g, '_'),
-                email: firebaseUser.email,
-                password: 'google-auth-no-password',
-                full_name: firebaseUser.displayName || firebaseUser.email.split('@')[0]
-            });
-            const response = await api.get('/auth/me');
-            setUser(response.data);
-            return response.data;
-        } catch (err) {
-            console.error('Failed to sync Google user:', err);
-            throw err;
-        }
-    };
-
     const login = async (email, password) => {
-        const userCredential = await signInWithEmailAndPassword(auth, email, password);
-        const token = await getIdToken(userCredential.user);
-        localStorage.setItem('token', token);
-        fetchUser().catch(console.error);
-        return userCredential.user;
-    };
-
-    const loginWithGoogle = async () => {
-        try {
-            const provider = new GoogleAuthProvider();
-            provider.setCustomParameters({ prompt: 'select_account' });
-            const userCredential = await signInWithPopup(auth, provider);
-            const token = await getIdToken(userCredential.user);
-            localStorage.setItem('token', token);
-            fetchUser().catch(console.error);
-            return userCredential.user;
-        } catch (error) {
-            console.error("Detailed Google Login Error:", error);
-            throw error;
-        }
+        const response = await api.post('/auth/login', { email, password });
+        const { access_token, user: userData } = response.data;
+        localStorage.setItem('token', access_token);
+        setUser(userData);
+        return userData;
     };
 
     const demoLogin = async (role = 'student') => {
@@ -137,15 +87,15 @@ export function AuthProvider({ children }) {
 
     const register = async (userData) => {
         const { email, password, username, full_name, role, mode } = userData;
-        const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-        const token = await getIdToken(userCredential.user);
-        localStorage.setItem('token', token);
-        api.post('/auth/register', {
+        const response = await api.post('/auth/register', {
             username, email, password, full_name,
             role: role || 'student',
             mode: mode || 'college'
-        }).then(() => fetchUser()).catch(console.error);
-        return userCredential.user;
+        });
+        const { access_token, user: newUser } = response.data;
+        localStorage.setItem('token', access_token);
+        setUser(newUser);
+        return newUser;
     };
 
     const updateRole = async (role, mode) => {
@@ -165,7 +115,6 @@ export function AuthProvider({ children }) {
     };
 
     const logout = async () => {
-        try { await signOut(auth); } catch (e) { /* demo mode */ }
         localStorage.clear();
         setUser(null);
         navigate('/');
@@ -173,7 +122,7 @@ export function AuthProvider({ children }) {
 
     return (
         <AuthContext.Provider value={{
-            user, loading, login, loginWithGoogle, register, logout, demoLogin,
+            user, loading, login, register, logout, demoLogin,
             updateRole, fetchUser
         }}>
             {children}
@@ -182,4 +131,3 @@ export function AuthProvider({ children }) {
 }
 
 export const useAuth = () => useContext(AuthContext);
-

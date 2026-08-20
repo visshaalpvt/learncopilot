@@ -5,7 +5,7 @@ from typing import Optional
 from app.database import get_db
 from app.models import User
 from app.schemas import UserCreate, UserResponse
-from app.auth import get_password_hash
+from app.auth import get_password_hash, verify_password, create_access_token
 from app.dependencies import get_current_user
 
 router = APIRouter(prefix="/auth", tags=["Authentication"])
@@ -16,7 +16,18 @@ class RoleUpdate(BaseModel):
     mode: Optional[str] = None
 
 
-@router.post("/register", response_model=UserResponse)
+class LoginRequest(BaseModel):
+    email: str
+    password: str
+
+
+class TokenResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    user: UserResponse
+
+
+@router.post("/register")
 def register(user: UserCreate, db: Session = Depends(get_db)):
     try:
         # Check if user exists
@@ -25,8 +36,9 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
         ).first()
         
         if existing_user:
-            # If user already exists, just return it (for syncing with Firebase)
-            return existing_user
+            # Return token for existing user
+            token = create_access_token(data={"sub": existing_user.email})
+            return {"access_token": token, "token_type": "bearer", "user": existing_user}
         
         # Create new user
         hashed_password = get_password_hash(user.password)
@@ -43,13 +55,26 @@ def register(user: UserCreate, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(db_user)
         
-        return db_user
+        token = create_access_token(data={"sub": db_user.email})
+        return {"access_token": token, "token_type": "bearer", "user": db_user}
     except Exception as e:
         db.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Registration sync failed: {str(e)}"
+            detail=f"Registration failed: {str(e)}"
         )
+
+
+@router.post("/login")
+def login(data: LoginRequest, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == data.email).first()
+    if not user or not verify_password(data.password, user.hashed_password):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid email or password"
+        )
+    token = create_access_token(data={"sub": user.email})
+    return {"access_token": token, "token_type": "bearer", "user": user}
 
 
 @router.get("/me", response_model=UserResponse)
