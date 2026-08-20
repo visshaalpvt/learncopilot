@@ -132,7 +132,13 @@ class VectorStore:
         # Filter candidates
         candidates = list(self.chunks.keys())
         if subject_filter:
-            candidates = self.by_subject.get(subject_filter.lower(), [])
+            target = subject_filter.strip().title()
+            candidates = self.by_subject.get(target, [])
+            if not candidates:
+                for s, cids in self.by_subject.items():
+                    if s.lower() == subject_filter.lower().strip():
+                        candidates = cids
+                        break
             
         results = []
         for cid in candidates:

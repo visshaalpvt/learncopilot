@@ -26,6 +26,8 @@ function Syllabus() {
     const fileInputRef = useRef(null);
     const navigate = useNavigate();
 
+    const [uploadError, setUploadError] = useState(null);
+
     useEffect(() => {
         fetchData();
     }, []);
@@ -113,47 +115,54 @@ function Syllabus() {
     };
 
     const validateAndSetFile = (file) => {
+        setUploadError(null);
         const validTypes = ['.pdf', '.txt', '.md'];
         const ext = file.name.substring(file.name.lastIndexOf('.')).toLowerCase();
         if (validTypes.includes(ext)) {
             setSelectedFile(file);
         } else {
-            alert('Please upload a PDF, TXT or MD file');
+            setUploadError('Please upload a PDF, TXT or MD file.');
         }
     };
 
     const handleSubmit = async (e) => {
-        e.preventDefault();
+        if (e) e.preventDefault();
         if (!selectedFile) return;
 
         setLoading(true);
         setUploadSuccess(null);
+        setUploadError(null);
 
         try {
             const formData = new FormData();
             formData.append('file', selectedFile);
-            if (subjectName) formData.append('subject_hint', subjectName);
+            if (subjectName.trim()) {
+                formData.append('subject_hint', subjectName.trim());
+            }
 
             const response = await api.post('/rag/upload', formData, {
                 headers: { 'Content-Type': 'multipart/form-data' },
             });
 
             if (response.data.success) {
+                const newSubject = response.data.subject;
                 setUploadSuccess({
                     message: response.data.message,
-                    subject: response.data.subject,
+                    subject: newSubject,
                     chunks: response.data.chunks_created
                 });
                 setSubjectName('');
                 setSelectedFile(null);
-                fetchData();
-                setTimeout(() => {
-                    setShowUploadForm(false);
-                    setUploadSuccess(null);
-                }, 3000);
+                await fetchData();
+                if (newSubject) {
+                    setExpandedSubject(newSubject);
+                    fetchCurriculum(newSubject);
+                }
             }
         } catch (error) {
-            alert(error.response?.data?.detail || 'Failed to upload document');
+            console.error('Upload error:', error);
+            const detail = error.response?.data?.detail || error.message || 'Failed to upload and process document';
+            setUploadError(typeof detail === 'string' ? detail : JSON.stringify(detail));
         } finally {
             setLoading(false);
         }
@@ -180,16 +189,20 @@ function Syllabus() {
                     </p>
                 </div>
                 <div style={{ display: 'flex', gap: '0.75rem' }}>
-                    <button className="btn btn-secondary" onClick={fetchData} style={{ padding: '0.5rem 0.75rem' }}>
+                    <button className="btn btn-secondary" onClick={fetchData} style={{ padding: '0.5rem 0.75rem' }} title="Refresh">
                         <RefreshCw size={18} className={loading ? 'spin' : ''} />
                     </button>
                     <button
                         className={`btn ${showUploadForm ? 'btn-secondary' : 'btn-primary'}`}
-                        onClick={() => setShowUploadForm(!showUploadForm)}
+                        onClick={() => {
+                            setShowUploadForm(!showUploadForm);
+                            setUploadError(null);
+                            setUploadSuccess(null);
+                        }}
                         style={{ height: '42px', padding: '0 1.5rem' }}
                     >
                         {showUploadForm ? <X size={18} /> : <Upload size={18} />}
-                        {showUploadForm ? 'Cancel' : 'Upload Material'}
+                        {showUploadForm ? 'Close' : 'Upload Material'}
                     </button>
                 </div>
             </div>
@@ -211,66 +224,161 @@ function Syllabus() {
                             boxShadow: '0 20px 40px -20px rgba(0,0,0,0.1)'
                         }}>
                             {uploadSuccess ? (
-                                <div style={{ textAlign: 'center', padding: '1rem' }}>
+                                <div style={{ textAlign: 'center', padding: '1.5rem' }}>
                                     <div style={{ width: '64px', height: '64px', background: 'rgba(16, 185, 129, 0.1)', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1.5rem' }}>
                                         <CheckCircle2 size={32} color="#10B981" />
                                     </div>
-                                    <h3>Document Indexed!</h3>
-                                    <p style={{ color: 'var(--text-secondary)' }}>{uploadSuccess.message}</p>
-                                    <div className="badge badge-primary" style={{ marginTop: '1rem' }}>
-                                        {uploadSuccess.subject} • {uploadSuccess.chunks} Chunks
+                                    <h3 style={{ fontSize: '1.4rem', fontWeight: '800', marginBottom: '0.5rem' }}>Document Indexed Successfully!</h3>
+                                    <p style={{ color: 'var(--text-secondary)', maxWidth: '500px', margin: '0 auto' }}>{uploadSuccess.message}</p>
+                                    
+                                    <div style={{ display: 'flex', justifyContent: 'center', gap: '0.75rem', marginTop: '1.25rem', flexWrap: 'wrap' }}>
+                                        <div className="badge badge-primary" style={{ padding: '0.4rem 1rem', fontSize: '0.9rem' }}>
+                                            Subject: <strong>{uploadSuccess.subject}</strong>
+                                        </div>
+                                        <div className="badge" style={{ background: 'rgba(99, 102, 241, 0.1)', color: 'var(--primary)', padding: '0.4rem 1rem', fontSize: '0.9rem' }}>
+                                            {uploadSuccess.chunks} Knowledge Chunks
+                                        </div>
+                                    </div>
+
+                                    <div style={{ display: 'flex', justifyContent: 'center', gap: '1rem', marginTop: '1.75rem' }}>
+                                        <button
+                                            className="btn btn-secondary"
+                                            onClick={() => {
+                                                setUploadSuccess(null);
+                                                setSelectedFile(null);
+                                            }}
+                                        >
+                                            Upload Another Document
+                                        </button>
+                                        <button
+                                            className="btn btn-primary"
+                                            onClick={() => navigate('/app/theory', { state: { subject: uploadSuccess.subject } })}
+                                        >
+                                            <Sparkles size={16} /> Study This Subject Now
+                                        </button>
                                     </div>
                                 </div>
                             ) : (
                                 <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '2rem' }}>
                                     <div style={{ display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
                                         <div>
-                                            <label style={{ display: 'block', fontWeight: '700', marginBottom: '0.5rem', fontSize: '0.9rem' }}>Subject Category</label>
+                                            <label style={{ display: 'block', fontWeight: '700', marginBottom: '0.5rem', fontSize: '0.9rem' }}>
+                                                Subject Category <span style={{ color: 'var(--text-muted)', fontWeight: '400' }}>(Optional - AI will auto-detect)</span>
+                                            </label>
                                             <input
                                                 className="form-input"
-                                                placeholder="e.g. Database Systems"
+                                                placeholder="e.g. Java Programming, Database Systems..."
                                                 value={subjectName}
                                                 onChange={(e) => setSubjectName(e.target.value)}
+                                                disabled={loading}
                                             />
                                         </div>
                                         <div style={{ background: 'var(--primary-light)', padding: '1rem', borderRadius: '12px', display: 'flex', gap: '0.75rem' }}>
-                                            <Sparkles size={20} color="var(--primary)" />
-                                            <p style={{ fontSize: '0.85rem', margin: 0, color: 'var(--text-primary)' }}>
-                                                <strong>AI Extracting...</strong> Our engine will automatically find chapters and units inside your file.
+                                            <Sparkles size={20} color="var(--primary)" style={{ flexShrink: 0, marginTop: '2px' }} />
+                                            <p style={{ fontSize: '0.85rem', margin: 0, color: 'var(--text-primary)', lineHeight: '1.4' }}>
+                                                <strong>AI Neural Ingestion:</strong> Our engine will extract text, segment units, build vector embeddings, and generate a curriculum automatically.
                                             </p>
                                         </div>
+
+                                        {uploadError && (
+                                            <div style={{
+                                                background: 'rgba(239, 68, 68, 0.1)',
+                                                border: '1px solid rgba(239, 68, 68, 0.2)',
+                                                borderRadius: '12px',
+                                                padding: '0.85rem 1rem',
+                                                color: '#ef4444',
+                                                fontSize: '0.875rem',
+                                                fontWeight: '600'
+                                            }}>
+                                                ⚠️ {uploadError}
+                                            </div>
+                                        )}
                                     </div>
 
                                     <div
                                         onDragOver={handleDrag}
                                         onDragLeave={handleDrag}
                                         onDrop={handleDrop}
-                                        onClick={() => fileInputRef.current.click()}
+                                        onClick={() => {
+                                            if (!selectedFile && !loading && fileInputRef.current) {
+                                                fileInputRef.current.click();
+                                            }
+                                        }}
                                         style={{
                                             border: `2px dashed ${dragActive ? 'var(--primary)' : 'var(--border)'}`,
                                             borderRadius: '16px',
                                             padding: '2.5rem',
                                             textAlign: 'center',
-                                            cursor: 'pointer',
+                                            cursor: selectedFile || loading ? 'default' : 'pointer',
                                             background: dragActive ? 'rgba(99, 102, 241, 0.05)' : 'rgba(0,0,0,0.02)',
-                                            transition: 'all 0.2s'
+                                            transition: 'all 0.2s',
+                                            display: 'flex',
+                                            flexDirection: 'column',
+                                            justifyContent: 'center',
+                                            alignItems: 'center'
                                         }}
                                     >
-                                        <input ref={fileInputRef} type="file" accept=".pdf,.txt,.md" style={{ display: 'none' }} onChange={handleFileSelect} />
+                                        <input
+                                            ref={fileInputRef}
+                                            type="file"
+                                            accept=".pdf,.txt,.md"
+                                            style={{ display: 'none' }}
+                                            onChange={handleFileSelect}
+                                        />
                                         {selectedFile ? (
-                                            <div>
-                                                <FileText size={48} color="var(--primary)" style={{ marginBottom: '1rem' }} />
-                                                <div style={{ fontWeight: '700' }}>{selectedFile.name}</div>
-                                                <div style={{ fontSize: '0.8rem', opacity: 0.6 }}>{(selectedFile.size / 1024 / 1024).toFixed(2)} MB</div>
-                                                <button type="submit" className="btn btn-primary" style={{ marginTop: '1.5rem', width: '100%' }} disabled={loading}>
-                                                    {loading ? 'Processing...' : 'Start Indexing'}
-                                                </button>
+                                            <div
+                                                onClick={(e) => e.stopPropagation()}
+                                                style={{ width: '100%' }}
+                                            >
+                                                <FileText size={48} color="var(--primary)" style={{ margin: '0 auto 1rem' }} />
+                                                <div style={{ fontWeight: '700', fontSize: '1rem', wordBreak: 'break-word' }}>{selectedFile.name}</div>
+                                                <div style={{ fontSize: '0.85rem', opacity: 0.6, marginTop: '0.25rem' }}>
+                                                    {(selectedFile.size / 1024 / 1024).toFixed(2)} MB
+                                                </div>
+                                                
+                                                <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1.5rem', width: '100%' }}>
+                                                    <button
+                                                        type="button"
+                                                        className="btn btn-secondary"
+                                                        style={{ flex: 1, height: '42px' }}
+                                                        disabled={loading}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setSelectedFile(null);
+                                                            setUploadError(null);
+                                                            if (fileInputRef.current) fileInputRef.current.value = '';
+                                                        }}
+                                                    >
+                                                        Change File
+                                                    </button>
+                                                    <button
+                                                        type="submit"
+                                                        className="btn btn-primary"
+                                                        style={{ flex: 2, height: '42px' }}
+                                                        disabled={loading}
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                        }}
+                                                    >
+                                                        {loading ? (
+                                                            <>
+                                                                <RefreshCw size={16} className="spin" />
+                                                                Processing & Indexing...
+                                                            </>
+                                                        ) : (
+                                                            <>
+                                                                <Sparkles size={16} />
+                                                                Start Indexing
+                                                            </>
+                                                        )}
+                                                    </button>
+                                                </div>
                                             </div>
                                         ) : (
                                             <>
                                                 <Upload size={40} style={{ color: 'var(--text-muted)', marginBottom: '1rem' }} />
-                                                <div style={{ fontWeight: '600' }}>Drop your PDF or Notes here</div>
-                                                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)' }}>Click to browse files (Max 10MB)</div>
+                                                <div style={{ fontWeight: '600', fontSize: '1rem' }}>Drop your PDF or Notes here</div>
+                                                <div style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: '0.25rem' }}>Click to browse files (PDF, TXT, MD up to 25MB)</div>
                                             </>
                                         )}
                                     </div>

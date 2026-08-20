@@ -5,7 +5,7 @@ API endpoints for the RAG system
 ==============================================================================
 """
 
-from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends
 from pydantic import BaseModel
 from typing import Optional, List, Dict, Any
 import tempfile
@@ -64,7 +64,7 @@ class SystemStatsResponse(BaseModel):
 @router.post("/upload", response_model=DocumentUploadResponse)
 async def upload_document(
     file: UploadFile = File(...),
-    subject_hint: Optional[str] = None
+    subject_hint: Optional[str] = Form(None)
 ):
     """
     Upload and process a document for RAG.
