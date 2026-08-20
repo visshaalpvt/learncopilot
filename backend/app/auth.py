@@ -9,18 +9,26 @@ from passlib.context import CryptContext
 
 load_dotenv()
 
-# Initialize Firebase Admin
+# Initialize Firebase Admin safely
 if not firebase_admin._apps:
-    # Try environment variable first (for Render deployment)
-    firebase_creds_json = os.getenv("FIREBASE_CREDENTIALS")
-    if firebase_creds_json:
-        cred_dict = json.loads(firebase_creds_json)
-        cred = credentials.Certificate(cred_dict)
-    else:
-        # Fall back to file (for local development)
-        cred_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "firebase-service-account.json")
-        cred = credentials.Certificate(cred_path)
-    firebase_admin.initialize_app(cred)
+    try:
+        firebase_creds_json = os.getenv("FIREBASE_CREDENTIALS")
+        if firebase_creds_json:
+            cred_dict = json.loads(firebase_creds_json)
+            cred = credentials.Certificate(cred_dict)
+            firebase_admin.initialize_app(cred)
+            print("[Auth] Firebase Admin initialized from FIREBASE_CREDENTIALS environment variable.")
+        else:
+            # Fall back to file (for local development)
+            cred_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "firebase-service-account.json")
+            if os.path.exists(cred_path):
+                cred = credentials.Certificate(cred_path)
+                firebase_admin.initialize_app(cred)
+                print("[Auth] Firebase Admin initialized from local service account file.")
+            else:
+                print("[Auth] Warning: firebase-service-account.json not found and FIREBASE_CREDENTIALS env var not set. Firebase auth running in fallback mode.")
+    except Exception as e:
+        print(f"[Auth] Warning during Firebase initialization: {e}")
 
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
